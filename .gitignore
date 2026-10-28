@@ -1,0 +1,6 @@
+# WorkBuddy project data (local memory, runtime state) — never version-controlled
+.workbuddy/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
