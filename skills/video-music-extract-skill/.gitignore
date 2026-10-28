@@ -1,0 +1,12 @@
+# Python noise
+__pycache__/
+*.py[cod]
+
+# Auto-created venv + downloaded model weights (pulled on first run)
+.cache/
+assets/*.onnx
+
+# Local working files
+work/
+*.part
+_vme_tmp*

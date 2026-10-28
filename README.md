@@ -8,8 +8,10 @@
 |---|---|---|
 | **visual-director** | 把参考图/视频/一句话创意转化为可执行视觉方案：视觉诊断、创意方向、生成提示词、质量检查与定向修正。适用于时尚编辑、产品/品牌视觉、社媒、短视频分镜与 AI 图像/视频制作。 | [`skills/visual-director-skill`](skills/visual-director-skill) |
 | **video-link-to-prompt** | 分析视频链接或上传视频，逐镜头拆解创意机制，产出可跨模型复用的视频生成提示词、分镜表与模型专设参数。 | [`skills/video-link-to-prompt-skill`](skills/video-link-to-prompt-skill) |
+| **video-music-extract** | 从 B 站 / YouTube 等任意视频链接抽取音乐 mp3，用一个"意图"参数控制是否保留人声：pure（默认，自动去人声）、all（保留原唱+配音）、chorus/C（保留合唱/衬底"啊"人声）。 | [`skills/video-music-extract-skill`](skills/video-music-extract-skill) |
+| **music-instrument-analysis** | 上传或链接一段音乐，用 YAMNet(ONNX) 客观乐器概率 + 频谱特征 + 音乐学知识识别乐器组成，讲解每种乐器的适用场景与最佳搭配，并支持时间轴分段配器表。 | [`skills/music-instrument-analysis-skill`](skills/music-instrument-analysis-skill) |
 
-每个 Skill 目录均含 `SKILL.md`（核心路由 + 约束）、`references/`（按需加载的详细规则）、`templates/`（产出模板），部分含 `evals/`（回归断言）与 `examples/`。
+每个 Skill 目录均含 `SKILL.md`（核心路由 + 约束）、`scripts/`（本地可执行脚本），多数含 `assets/`、`requirements.txt` 与 `README.md`；部分含 `references/`（按需加载的详细规则）与 `templates/`（产出模板）。
 
 ## 安装
 

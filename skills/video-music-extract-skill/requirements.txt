@@ -1,0 +1,12 @@
+# System tools (install separately, not via pip):
+#   ffmpeg / ffprobe  -> https://ffmpeg.org/
+#   yt-dlp            -> pip install yt-dlp   (or pipx install yt-dlp)
+#
+# The heavy ML deps below are auto-installed into a local venv (.cache/venv) on
+# first run, so a normal `pip install -r requirements.txt` is optional. Listed
+# here for documentation / offline setups.
+numpy>=1.24
+onnxruntime>=1.16
+huggingface_hub>=0.23
+torch>=2.1
+demucs>=4.0

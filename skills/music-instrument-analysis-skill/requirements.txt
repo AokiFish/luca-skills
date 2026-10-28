@@ -1,0 +1,6 @@
+numpy>=1.24
+scipy>=1.10
+matplotlib>=3.7
+onnxruntime>=1.16
+# optional, only needed for --url downloads:
+# yt-dlp>=2025.1.15

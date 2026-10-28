@@ -1,0 +1,11 @@
+# Python noise
+__pycache__/
+*.py[cod]
+
+# Auto-downloaded model weights (pulled on first run)
+assets/*.onnx
+
+# Local working files
+work/
+*.wav
+*.part
