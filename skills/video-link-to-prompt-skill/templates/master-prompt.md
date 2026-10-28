@@ -1,49 +1,43 @@
-# Cross-Model Master Prompt Template
+# Reusable Video Master Prompt
 
-> Replace bracketed fields. Delete modules that do not apply. Do not leave placeholders in a final ready-to-run prompt unless a template was requested.
+Replace bracketed fields with concrete values before generation.
 
 ## Creative brief
-- **Topic:** [DESCRIBE THE VIDEO TOPIC]
-- **Core idea:** [ONE-SENTENCE CONCEPT]
-- **Audience/use:** [TARGET AUDIENCE AND USE]
-- **Duration:** [TARGET DURATION]
-- **Aspect ratio:** [ASPECT RATIO]
-- **Workflow:** [TEXT-TO-VIDEO / IMAGE-TO-VIDEO / START-END FRAMES / MULTI-SHOT]
+- **Duration / aspect ratio:** [TARGET DURATION] / [ASPECT RATIO]
+- **Core idea:** [ONE-SENTENCE PREMISE]
+- **Opening hook:** [FIRST VISUAL EVENT]
+- **Main subject / setting:** [MAIN SUBJECT] / [SETTING]
+- **Goal / obstacle:** [GOAL] / [OBSTACLE]
+- **Escalation:** [HOW THE SITUATION DEVELOPS]
+- **Payoff:** [PAYOFF / TWIST / EMOTIONAL BEAT]
+- **Visual identity:** [VISUAL STYLE], [COLOR PALETTE], [LIGHTING]
+- **Sound:** [SOUND DESIGN OR MUSIC DIRECTION]
 
-## Subject and scene
-- **Main subject:** [PERSON / ANIMAL / PRODUCT / FOOD / ENVIRONMENT]
-- **Stable identity markers:** [FACE / HAIR / CLOTHING / SHAPE / MATERIAL / DISTINCTIVE FEATURES]
-- **Location and layout:** [FOREGROUND / MIDGROUND / BACKGROUND / SPATIAL RELATIONSHIPS]
-- **Time/weather:** [TIME / SEASON / WEATHER]
-- **Important props:** [PROPS REQUIRED FOR THE ACTION]
-- **Environment interaction:** [HOW THE SUBJECT AFFECTS OR USES THE ENVIRONMENT]
+## Shot plan
+1. **[TIME RANGE] — [SHOT SIZE / ANGLE]:** [STARTING STATE]. [ONE PRIMARY ACTION WITH CLEAR TEMPORAL PROGRESSION]. Camera: [CAMERA BEHAVIOR]. Keep [CONTINUITY ANCHOR] consistent.
+2. **[TIME RANGE] — [SHOT SIZE / ANGLE]:** [NEXT BEAT OR REACTION]. Camera: [CAMERA BEHAVIOR]. Transition naturally from the previous shot.
+3. **[TIME RANGE] — [SHOT SIZE / ANGLE]:** [ESCALATION OR REVEAL]. Make cause and effect visually readable.
+4. **[TIME RANGE] — [SHOT SIZE / ANGLE]:** [PAYOFF / ENDING HOLD]. Let the final beat read clearly.
 
-## Visual language
-- **Style:** [CINEMATIC REALISM / DOCUMENTARY / COMMERCIAL / ANIMATION / OTHER]
-- **Framing/angle:** [SHOT SIZE / CAMERA ANGLE / COMPOSITION]
-- **Camera movement:** [ONE PRIMARY CAMERA MOVE]
-- **Focus/depth:** [FOCUS TARGET / DEPTH-OF-FIELD IMPRESSION]
-- **Lighting:** [DIRECTION / SOFTNESS / CONTRAST / PRACTICAL LIGHT SOURCES]
-- **Palette:** [3–5 COORDINATED COLORS]
-- **Texture/detail:** [RELEVANT MATERIAL AND SURFACE DETAILS]
+Adjust the shot count to the duration; do not force four shots if fewer or more are appropriate.
 
-## Shot timeline
-For each shot, define one primary action and its end state. Use only as many shots as the concept needs.
+## Fixed quality rules
+- One readable primary action per shot.
+- Clear start, middle and end state for important movement.
+- Camera movement supports the action and does not compete with it.
+- Maintain subject identity, wardrobe, props, environment and screen direction.
+- Keep lighting and color coherent across connected shots.
+- Make the hook legible immediately and give the payoff enough time.
+- Avoid contradictory actions, excessive adjectives and unrelated effects.
+- [REFERENCE-DERIVED TRANSFERABLE RULES]
 
-- **[TIME RANGE / SHOT 1]:** [START STATE → PRIMARY ACTION → END STATE; FRAMING; CAMERA MOVE]
-- **[TIME RANGE / SHOT 2]:** [ACTION DEVELOPMENT; FRAMING; CAMERA MOVE; CONTINUITY]
-- **[TIME RANGE / SHOT 3]:** [CLIMAX / REVEAL / EMOTIONAL TURN]
-- **[TIME RANGE / FINAL SHOT]:** [PAYOFF / FINAL IMAGE / END STATE]
+## Replaceable variables
+[MAIN SUBJECT], [SETTING], [GOAL], [OBSTACLE], [KEY PROP], [ESCALATION], [PAYOFF], [VISUAL STYLE], [COLOR PALETTE], [SOUND DESIGN], [TARGET DURATION], [ASPECT RATIO], [TARGET MODEL].
 
-## Audio (if supported or intended for post-production)
-- **Ambience:** [LOCATION-APPROPRIATE AMBIENT SOUND]
-- **Foley:** [SYNCHRONIZED ACTION SOUNDS]
-- **Music:** [STYLE / EMOTIONAL FUNCTION / ENTRY AND EXIT]
-- **Dialogue:** [SPEAKER / EXACT USER-PROVIDED LINE / DELIVERY / TIMING]
-- **Mix priority:** [FOREGROUND SOUND VS BACKGROUND]
-
-## Continuity and quality
-Maintain consistent subject identity, wardrobe, props, spatial layout, screen direction, lighting direction, and palette across shots. Actions should be readable, temporally coherent, and physically plausible. Keep the main subject visually legible. Avoid unnecessary cuts, contradictory camera directions, unexplained object changes, flicker, malformed anatomy, and irrelevant text or watermarks.
-
-## Final assembly instruction
-Convert the completed brief into concise, natural instructions appropriate for [TARGET MODEL AND VERSION]. Keep model-specific UI/API settings separate from prompt prose. Remove unsupported features. Prioritize a coherent action and clear visual intent over adjective density.
+## Model settings (separate from prompt)
+- Model/version: [MODEL]
+- Duration: [SUPPORTED DURATION]
+- Aspect ratio/resolution: [SUPPORTED OPTIONS]
+- Reference inputs: [SUPPORTED INPUTS]
+- Audio: [SUPPORTED / NOT SUPPORTED / UNKNOWN]
+- Negative prompt/other controls: [ONLY IF SUPPORTED]

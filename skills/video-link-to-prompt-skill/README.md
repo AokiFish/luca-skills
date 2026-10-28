@@ -1,32 +1,81 @@
-# Video Link → Prompt Skill
+# Video Link to Prompt Skill (v2)
 
-A reusable Agent Skill for turning a reference video into:
-- an evidence-grounded shot-by-shot breakdown;
-- a concise analysis of the creative choices;
-- fixed rules versus replaceable variables;
-- a reusable cross-model master prompt;
-- optional model-specific prompt/settings adaptation.
+Portable Skill for WorkBuddy, Codex, and other agents that can read `SKILL.md` and execute local scripts.
 
-## Package layout
+## Included
+- `scripts/analyze_video.py`: URL/local-file retrieval, FFprobe metadata, timestamped frame extraction, contact sheet, optional audio extraction and transcription.
+- `scripts/vision_api_analyze.py`: optional adapter for an OpenAI-compatible multimodal API.
+- `templates/vision-analysis-instructions.md`: how the host agent should inspect extracted frames.
+- `templates/master-prompt.md`: reusable prompt template with fixed rules and replaceable variables.
 
-- `SKILL.md` — skill entrypoint and operating procedure.
-- `references/analysis-checklist.md` — practical shot-analysis checklist.
-- `references/model-adaptation.md` — cross-model adaptation rules.
-- `templates/master-prompt.md` — reusable prompt skeleton.
-- `templates/shot-breakdown.md` — shot table template.
-- `templates/output-report.md` — final report structure.
+## Requirements
+- Python 3.10+
+- `python -m pip install -r requirements.txt`
+- FFmpeg and FFprobe installed and on PATH: https://ffmpeg.org/
+- Optional transcription: `python -m pip install faster-whisper`
 
-## How to use
+## Quick start
 
-1. Install/import this folder into an Agent Skills-compatible environment.
-2. Trigger it by pasting a video URL and asking for a breakdown, or by uploading a video.
-3. State the target model and desired duration/aspect ratio if known.
-4. If the video link cannot be accessed, upload the clip or provide key frames and a transcript.
+```bash
+python -m pip install -r requirements.txt
+python scripts/analyze_video.py --url "https://www.youtube.com/shorts/VIDEO_ID" --out ./video-analysis
+```
 
-## Important
+Local file:
 
-The skill defines the analysis workflow; it does not itself grant browser, video-download, audio-transcription, or video-generation capabilities. The host agent must have suitable tools and permissions. It must report inaccessible media rather than hallucinating a breakdown.
+```bash
+python scripts/analyze_video.py --file ./reference.mp4 --out ./video-analysis
+```
 
-## Compatibility
+Sampling options:
 
-The package follows the common Agent Skills convention: a skill folder with a `SKILL.md` entrypoint and optional supporting files. Specific platforms may require their own installation path or packaging conventions.
+```bash
+python scripts/analyze_video.py --url "VIDEO_URL" --out ./video-analysis --interval 0.5 --max-frames 50
+```
+
+Optional transcription (may download a speech model on first run):
+
+```bash
+python -m pip install faster-whisper
+python scripts/analyze_video.py --url "VIDEO_URL" --out ./video-analysis --transcribe
+```
+
+## Host agent workflow
+1. Run the extraction script.
+2. Read `analysis_bundle.json` and `source_metadata.json`.
+3. Inspect `contact_sheet.jpg` and timestamped images under `frames/` using the host's actual image-understanding tool.
+4. Follow `templates/vision-analysis-instructions.md`.
+5. Produce the shot table, fixed rules, replaceable variables, and prompt per `SKILL.md`.
+
+A text-only host cannot infer what frames depict. In that case, use the optional API adapter if configured or state that semantic visual analysis is unavailable.
+
+## Optional vision API adapter
+Only use this if you intentionally want to send frames to an external vision-capable endpoint. Set:
+- `OPENAI_API_KEY` (required)
+- `VISION_MODEL` (required; must support image inputs at your endpoint)
+- `OPENAI_BASE_URL` (optional; defaults to `https://api.openai.com/v1`)
+
+Then:
+
+```bash
+python scripts/vision_api_analyze.py --bundle ./video-analysis/analysis_bundle.json --out ./video-analysis/vision_analysis.json
+```
+
+Review the provider's privacy, cost and retention terms before sending frames. Do not put keys in Skill files. The adapter reports endpoint/model errors rather than claiming success.
+
+## Output files
+- `analysis_bundle.json`: evidence inventory and technical metadata
+- `source_metadata.json`: source and retrieval details
+- `frames/`: timestamped keyframes
+- `contact_sheet.jpg`: overview of sampled frames
+- `audio.wav`: extracted audio, if available
+- `transcript.txt` / `transcript.json`: optional transcription
+- `access_diagnostic.json`: error details and fallback suggestions
+- `vision_analysis.json`: optional API analysis
+
+## Important limits
+- A URL may expose metadata but not a downloadable video stream.
+- Evenly sampled frames can miss rapid cuts or brief actions.
+- FFmpeg/OpenCV-style processing does not equal semantic visual understanding.
+- A Skill cannot grant a host new model/tool capabilities.
+- Final video alone cannot reveal its original prompt, seed, exact camera/lens, or hidden generation settings.
