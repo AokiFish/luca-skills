@@ -1,0 +1,2 @@
+# 视频下载技能仅依赖 yt-dlp（ffmpeg 需单独安装并加入 PATH，见 references/install.md）
+yt-dlp>=2025.1.15
