@@ -90,6 +90,20 @@ Use `templates/master-prompt.md`. Fill known fields. For a ready-to-run prompt, 
 - Model parameters separated from prompt prose.
 - Output is ready to use without requiring the user to learn the method.
 
+## Output file naming
+Never write a bare `video-prompt-report.md`. Append a short slug derived from the video so reports from different sources stay distinguishable:
+
+`video-prompt-report_<slug>.md`
+
+Slug rules:
+- Source priority: video title → `uploader` + platform → local filename stem.
+- Keep it short; an abbreviation is fine and preferred. Examples: `video-prompt-report_持械入宋.md`, `video-prompt-report_ESTEE-TVC.md`, `video-prompt-report_cat.md`.
+- Use `_` as the separator. No spaces (they break URLs, shell quoting and some tools).
+- Keep the title's original language — Chinese titles stay Chinese.
+- Variants of the same source: append a qualifier after the slug, e.g. `video-prompt-report_<slug>-拆分.md`.
+- Unknown or unnameable source: use a neutral slug such as `clip1` rather than leaving the suffix off.
+- Inside the report, state the source (platform + uploader/status id, or local filename) so the file is self-explanatory on its own.
+
 ## Default output structure
 1. Access/evidence status
 2. Creative summary: premise, hook, beats, payoff
