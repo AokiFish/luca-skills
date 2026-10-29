@@ -132,7 +132,7 @@
 ## 附：一次完整解析的产出清单
 
 跑完 `analyze_video.py`（含 `--transcribe`）后，解析目录通常会得到下列产物。
-**其中只有 `video-prompt-report.md` 随本仓库发布**——其余为源视频的衍生复制件，因版权原因保留在本地、不入库：
+**其中只有解析报告 `video-prompt-report-<slug>.md` 随本仓库发布**——其余为源视频的衍生复制件，因版权原因保留在本地、不入库：
 
 | 产物 | 说明 | 是否随仓库发布 |
 |---|---|---|
@@ -142,4 +142,4 @@
 | `audio.wav` | 分离音轨 | 否 |
 | `transcript.json` | faster-whisper 原始转写（带时间戳） | 否 |
 | `analysis_bundle.json` / `source_metadata.json` | 技术参数 | 否 |
-| `video-prompt-report.md` | 解析报告（即本文件） | **是** |
+| `video-prompt-report-<slug>.md` | 解析报告（即本文件） | **是** |

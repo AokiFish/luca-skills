@@ -127,4 +127,4 @@
 | `audio.wav` | 分离音轨 | 否 |
 | `transcript.json` | faster-whisper 转写（带时间戳） | 否 |
 | `analysis_bundle.json` / `source_metadata.json` | 技术参数 | 否 |
-| `video-prompt-report.md` | 解析报告（即本文件） | **是** |
+| `video-prompt-report-<slug>.md` | 解析报告（即本文件） | **是** |

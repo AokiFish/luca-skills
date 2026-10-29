@@ -46,7 +46,7 @@ python scripts/analyze_video.py --url "VIDEO_URL" --out ./video-analysis --trans
 3. Inspect `contact_sheet.jpg` and timestamped images under `frames/` using the host's actual image-understanding tool.
 4. Follow `templates/vision-analysis-instructions.md`.
 5. Produce the shot table, fixed rules, replaceable variables, and prompt per `SKILL.md`.
-6. When writing the report to a file, name it `video-prompt-report_<slug>.md` (slug from the video title / uploader / filename). Never use a bare `video-prompt-report.md`. See `SKILL.md` → "Output file naming".
+6. When writing the report to a file, name it `video-prompt-report-<slug>.md` (slug from the video title / uploader / filename). Never use a bare `video-prompt-report.md`. See `SKILL.md` → "Output file naming".
 
 A text-only host cannot infer what frames depict. In that case, use the optional API adapter if configured or state that semantic visual analysis is unavailable.
 
