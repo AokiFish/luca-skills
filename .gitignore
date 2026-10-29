@@ -5,9 +5,9 @@
 .DS_Store
 Thumbs.db
 
-# Example bundles are intentionally NOT published: they were produced from a
-# copyrighted third-party short drama (full episode mp4, audio, keyframes,
-# dialogue transcript). Keep them local only.
-# Remove these lines only after replacing the sample with licensed/original media.
+# Example: only the written analysis report (*.md) is published.
+# Derivative copies of the source video (mp4 / wav / keyframes / transcript /
+# spectrogram / json) stay local — copyrighted material, never commit them.
 /examples/
-/skills/video-link-to-prompt-skill/example/
+/skills/video-link-to-prompt-skill/example/*
+!/skills/video-link-to-prompt-skill/example/*.md
