@@ -11,3 +11,8 @@ Thumbs.db
 /examples/
 /skills/video-link-to-prompt-skill/example/*
 !/skills/video-link-to-prompt-skill/example/*.md
+
+# Duplicate of video-prompt-report-雅诗兰黛TVC.md (byte-identical).
+# Removed from the repo; kept locally only. Delete this line + the file if you
+# want it back under version control.
+/skills/video-link-to-prompt-skill/example/video-prompt-report-商业宣传产品.md

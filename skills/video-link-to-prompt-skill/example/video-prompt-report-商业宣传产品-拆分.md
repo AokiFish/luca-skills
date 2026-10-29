@@ -1,6 +1,6 @@
 # 雅诗兰黛小棕瓶 30s TVC — 拆分生成方案（3×10s，适配 Muse AI）
 
-> 配套文件：`video-prompt-report-商业宣传产品.md`（全片拆解）
+> 配套文件：`video-prompt-report-雅诗兰黛TVC.md`（全片拆解）
 > 适用工具：Muse AI（单次最长 10s，支持 text-to-video / image-to-video）
 > 原则：**现有文件不动，本文件仅新增**。每段自洽可独立生成，并用"衔接锚点"保证三段拼接无缝。
 
