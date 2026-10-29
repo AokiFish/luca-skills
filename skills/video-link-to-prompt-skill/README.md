@@ -1,4 +1,4 @@
-# Video Link to Prompt Skill (v2)
+# Video Link to Prompt Skill 
 
 Portable Skill for WorkBuddy, Codex, and other agents that can read `SKILL.md` and execute local scripts.
 

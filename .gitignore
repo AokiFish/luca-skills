@@ -4,3 +4,10 @@
 # OS / editor noise
 .DS_Store
 Thumbs.db
+
+# Example bundles are intentionally NOT published: they were produced from a
+# copyrighted third-party short drama (full episode mp4, audio, keyframes,
+# dialogue transcript). Keep them local only.
+# Remove these lines only after replacing the sample with licensed/original media.
+/examples/
+/skills/video-link-to-prompt-skill/example/
