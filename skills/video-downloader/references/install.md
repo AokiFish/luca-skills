@@ -35,6 +35,6 @@ ffmpeg -version
 ## 验证整个链路（不下载大文件）
 只看某个链接有哪些格式、能否解析，不真正下载：
 ```bash
-python skills/video-downloader-skill/scripts/download.py "<URL>" --list
+python skills/video-downloader/scripts/download.py "<URL>" --list
 ```
 能列出格式即说明提取器可用；列不出通常是该平台不支持或需要 cookie。

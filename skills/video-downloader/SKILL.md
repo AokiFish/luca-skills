@@ -34,21 +34,21 @@ version: "0.01.0"
 
 ```bash
 # 公开视频，直接下
-python skills/video-downloader-skill/scripts/download.py "https://<平台链接>"
+python skills/video-downloader/scripts/download.py "https://<平台链接>"
 
 # 指定输出目录
-python skills/video-downloader-skill/scripts/download.py "<URL>" --dir ./videos
+python skills/video-downloader/scripts/download.py "<URL>" --dir ./videos
 
 # 需要登录/cookie 的平台（抖音、小红书、B站番剧等）
-python skills/video-downloader-skill/scripts/download.py "<URL>" --browser chrome
+python skills/video-downloader/scripts/download.py "<URL>" --browser chrome
 # 或导出 cookies.txt 后用：
-python skills/video-downloader-skill/scripts/download.py "<URL>" --cookies cookies.txt
+python skills/video-downloader/scripts/download.py "<URL>" --cookies cookies.txt
 
 # 只取音频
-python skills/video-downloader-skill/scripts/download.py "<URL>" --audio
+python skills/video-downloader/scripts/download.py "<URL>" --audio
 
 # 先看有哪些清晰度再决定（不下）
-python skills/video-downloader-skill/scripts/download.py "<URL>" --list
+python skills/video-downloader/scripts/download.py "<URL>" --list
 ```
 
 成功后脚本输出一行 `DOWNLOADED: <绝对路径>`，把该路径回给用户。

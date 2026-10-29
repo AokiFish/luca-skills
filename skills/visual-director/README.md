@@ -32,7 +32,7 @@
 
 ### WorkBuddy / Claude / Codex / Cursor 等支持 SKILL.md 的 Agent
 
-将 `visual-director-skill` 文件夹放进当前 Agent 的 Skills 目录（不同平台目录不同，见 [references/cross-agent-compatibility.md](references/cross-agent-compatibility.md)），或直接把本目录作为项目本地依赖，在任务中明确让 Agent 读取 `SKILL.md`。
+将 `visual-director` 文件夹放进当前 Agent 的 Skills 目录（不同平台目录不同，见 [references/cross-agent-compatibility.md](references/cross-agent-compatibility.md)），或直接把本目录作为项目本地依赖，在任务中明确让 Agent 读取 `SKILL.md`。
 
 ### 最简单的使用方式
 
@@ -67,7 +67,7 @@
 ## 文件结构
 
 ```text
-visual-director-skill/
+visual-director/
 ├── SKILL.md                      # 核心路由与约束
 ├── README.md                     # 本文件
 ├── references/                   # 按需加载的详细规则

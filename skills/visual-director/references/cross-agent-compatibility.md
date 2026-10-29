@@ -26,7 +26,7 @@ version: "1.0.0"
 
 ## 3. 多平台安装目录约定
 
-将 `visual-director-skill` 文件夹放入对应 Agent 的 Skills 目录：
+将 `visual-director` 文件夹放入对应 Agent 的 Skills 目录：
 
 | 宿主 | 常见 Skills 目录 |
 |---|---|
