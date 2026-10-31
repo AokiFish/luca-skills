@@ -43,8 +43,9 @@ python scripts/analyze_video.py --url "VIDEO_URL" --out ./video-analysis --trans
 ```
 
 ### Sampling strategy (this decides report fidelity)
-- **Default = per-second, full-coverage (逐秒逐帧解析)**: the script samples **one frame per second across the whole clip, uncapped** (`--interval 1 --max-frames 0`). A 533s clip yields ~533 per-second frames; nothing is skipped or capped. This is the baseline evidence.
-- **Shot keyframes (frames/)**: scene-cut detection runs **automatically** and writes **large, original-resolution keyframe images into `frames/`** — one big image per detected shot change, for reading shot composition in detail. Tune sensitivity with `--cut-threshold` (0–100; higher = fewer cuts), and add `--scene-cuts` to also write `_cuts.txt` + beat statistics.
+- **Default = per-second, full-coverage (逐秒逐帧解析)**: the script samples **one frame per second across the whole clip, uncapped** (`--interval 1 --max-frames 0`). A 533s clip yields ~533 per-second frames; nothing is skipped or capped. These land in `frames/` as **full-resolution big images** — the baseline evidence for reading every second in detail.
+- **关键帧 `key_frame/`（场景切点）**: scene-cut detection (ffmpeg `scdet`, `--cut-threshold` 0–100, higher = fewer cuts) runs **automatically** and writes **large original-resolution keyframe images into `key_frame/`** — one big image per detected shot change. Each cut frame is the **first frame of a new shot** (this is the video's 关键帧). A `key_frame_manifest.json/.md` lists every keyframe's timestamp, which shot it opens, the previous shot's duration, and the transition type (cut). Slow/cinematic clips with dissolves won't trigger `scdet`, so `key_frame/` may be sparse — lower `--cut-threshold` to catch more, or pick your own from `frames/`.
+- **分镜板 `story_board/`（镜头顺序）**: the shot list (split by the `key_frame/` cuts) is rendered as a **storyboard** in `story_board/` — both `story_board.md` (Obsidian-friendly, with each shot's representative frame + `[待填]` annotation fields: 景别/机位/运动/关键动作/对白音效) and `story_board.html` (visual board, one card per shot). **write-if-missing** so a re-run never overwrites filled notes. With no detected cuts it degrades to a single shot.
 - **sheets/ holds both the compressed package and the paginated thumbnails**:
   - `压缩包_全部帧.jpg` — **one dense master image collapsing every per-second frame into a single file** (the "压缩每一帧的包" you keep).
   - `sheet_XX.jpg` — the same per-second frames laid out as readable **paginated thumbnails** (default 5×9 = 45/page).
@@ -161,17 +162,18 @@ Slug rules:
 ## Generated output directory layout
 `analyze_video.py` writes the following under `--out`:
 
-- `frames/` — **shot keyframes as large original-resolution images** (one per detected scene cut). Big reference images for reading shot composition in detail; NOT the per-second thumbnails.
-- `_everysec/` — **per-second thumbnail frames** (downscaled), the source for the sheets. Kept so `make_sheets.py` can rebuild pages without re-extracting.
-- `sheets/` — the rhythm/action evidence package:
-  - `压缩包_全部帧.jpg` — **the compressed package**: every per-second frame collapsed into one master image (the "压缩每一帧的包" you keep inside sheets/).
-  - `sheet_XX.jpg` — paginated contact sheets (default 5×9 = 45 frames/page), built by the bundled `scripts/make_sheets.py`. Read these page by page to log beats.
-  - `节奏实录.md` — per-second anchor skeleton (`[待填]` per second); **write-if-missing** so a re-run never overwrites your filled notes.
-  - `动作模板.md` — **blank action-template skeleton** (from `templates/action-template.md`); **write-if-missing** (same protection). This is the source of truth for the breakdown.
-  - `_cuts.txt` — scene-cut list + beat statistics (only with `--scene-cuts`).
-  - `参考音轨_原片.wav` — the extracted reference audio (when present), for offline voiceover alignment.
-- `roles/` — **empty by design**; the user drops adapted-character reference images here (e.g. `主角1.jpg`, `主角2.jpg`, `反派3.jpg`). A `README.txt` documents the naming convention. Never put analysis output in here.
-- root: `analysis_bundle.json`, `source_metadata.json`, `audio.wav`, `transcript.txt`/`transcript.json` (if `--transcribe`). **No top-level `contact_sheet.jpg` is generated** — the compressed package lives in `sheets/`.
+- `frames/` — **逐秒全分辨率大图**（默认每秒 1 帧、不封顶，`--max-frames 0`）。主拆帧证据，用于逐秒精读画面；不是缩略图。
+- `key_frame/` — **关键帧（Keyframe）**：场景硬切点检测（ffmpeg `scdet`，阈值 `--cut-threshold` 0–100，越高越少切）产出的大图，每个切点 = 一个新镜头的首帧。配套 `key_frame_manifest.json/.md`（每帧时间戳、开启镜头号、上一镜头时长、转场类型）。渐变/静态转场不会被 `scdet` 捕获，故慢节奏片段可能只有少量关键帧——此时可下调阈值重跑，或从 `frames/` 自行挑选。
+- `story_board/` — **分镜板（Storyboard）**：按镜头（shot）顺序生成的板。`story_board.md`（Obsidian 友好，含代表帧与 `[待填]` 注解：景别/机位/运动/关键动作/对白音效）与 `story_board.html`（可视化分镜，每镜一卡、代表帧 + 待填栏）。**write-if-missing**，重跑不覆盖已填注解。镜头由 `key_frame/` 的切点切分；无切点时退化为单镜头。
+- `sheets/` — 节奏/动作证据包：
+  - `压缩包_全部帧.jpg` — **压缩包**：所有逐秒帧压成一张总图（你保留的"压缩每一帧的包"）。
+  - `sheet_XX.jpg` — 分页缩略图（默认 5×9 = 45 帧/页），由 `make_sheets.py` 生成，逐页精读节拍。
+  - `节奏实录.md` — 逐秒锚点骨架（每秒 `[待填]`）；**write-if-missing**。
+  - `动作模板.md` — **空白动作模板骨架**（来自 `templates/action-template.md`）；**write-if-missing**，是分镜拆解的单一事实源。
+  - `_cuts.txt` — 切点列表 + 节拍统计（始终生成）。
+  - `参考音轨_原片.wav` — 提取的参考音轨（存在时），用于离线条音对齐。
+- `roles/` — **按设计留空**；用户把改编角色参考图放这里（如 `主角1.jpg`）。`README.txt` 说明命名。不要把分析产物放这里。
+- root: `analysis_bundle.json`、`source_metadata.json`、`audio.wav`、`transcript.txt`/`transcript.json`（若 `--transcribe`）。**不生成顶层 `contact_sheet.jpg`**——压缩包在 `sheets/`。
 
 `make_sheets.py` is invoked automatically by `analyze_video.py`; it can also be run standalone (`python scripts/make_sheets.py --out <dir>`) to rebuild the paginated sheets after tweaking layout, without re-extracting frames.
 
