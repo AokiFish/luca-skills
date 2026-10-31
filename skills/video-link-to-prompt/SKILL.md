@@ -43,17 +43,12 @@ python scripts/analyze_video.py --url "VIDEO_URL" --out ./video-analysis --trans
 ```
 
 ### Sampling strategy (this decides report fidelity)
-- **Short clip / single-ad / slow scene** (≤ ~60s, few cuts): even sampling is enough. Default `--interval 1` with `--max-frames` sized to the clip.
-- **Long / fast-cut / animation / comedy / music video** (rhythm and exact actions matter): use **scene-cut detection** so every beat is grounded in a real frame instead of inferred from sparse sampling:
-
-```bash
-python scripts/analyze_video.py --file ./reference.mp4 --out ./video-analysis --scene-cuts --cut-threshold 10 --max-frames 600
-```
-
-  - `--scene-cuts` extracts one frame at each detected cut and records the cut count + average beats/second in `analysis_bundle.json`.
-  - `--cut-threshold` is on a 0–100 scale (percent of frame change); higher = fewer cuts. Start at `10`; raise it if the cut list is far longer than the real shot count, lower it if fast cuts are missed.
-  - **`sheets/` is built automatically** (see "Generated output directory layout"): paginated contact sheets `sheet_XX.jpg`, the cut list `_cuts.txt`, and the blank `动作模板.md` skeleton. Read the sheets page by page and fill `动作模板.md` before writing any prompt (see `templates/vision-analysis-instructions.md`).
-- **Rule of thumb**: if the report's action beats disagree with a re-watch, the sampling was too sparse. Re-extract denser before rewriting.
+- **Default = per-second, full-coverage (逐秒逐帧解析)**: the script samples **one frame per second across the whole clip, uncapped** (`--interval 1 --max-frames 0`). A 533s clip yields ~533 per-second frames; nothing is skipped or capped. This is the baseline evidence.
+- **Shot keyframes (frames/)**: scene-cut detection runs **automatically** and writes **large, original-resolution keyframe images into `frames/`** — one big image per detected shot change, for reading shot composition in detail. Tune sensitivity with `--cut-threshold` (0–100; higher = fewer cuts), and add `--scene-cuts` to also write `_cuts.txt` + beat statistics.
+- **sheets/ holds both the compressed package and the paginated thumbnails**:
+  - `压缩包_全部帧.jpg` — **one dense master image collapsing every per-second frame into a single file** (the "压缩每一帧的包" you keep).
+  - `sheet_XX.jpg` — the same per-second frames laid out as readable **paginated thumbnails** (default 5×9 = 45/page).
+- **Do not re-cap sampling**: never set `--max-frames` to a small number for long clips; that is what previously under-sampled. Leave it `0` (uncapped) unless you want a deliberate sparse probe. If the report's action beats disagree with a re-watch, the sampling was too sparse — re-run with the default uncapped setting.
 
 ## Retrieval fallback ladder
 1. Run the script on the supplied URL/file before asking the user to upload anything.
@@ -164,16 +159,19 @@ Slug rules:
 11. Two to four risks/next-iteration checks
 
 ## Generated output directory layout
-`analyze_video.py` writes the following under `--out`. Two folders are created for you and should be reused by later steps:
+`analyze_video.py` writes the following under `--out`:
 
-- `frames/` — extracted individual frames (timestamped), the fine-grained evidence.
-- `sheets/` — the **rhythm/action evidence package**:
+- `frames/` — **shot keyframes as large original-resolution images** (one per detected scene cut). Big reference images for reading shot composition in detail; NOT the per-second thumbnails.
+- `_everysec/` — **per-second thumbnail frames** (downscaled), the source for the sheets. Kept so `make_sheets.py` can rebuild pages without re-extracting.
+- `sheets/` — the rhythm/action evidence package:
+  - `压缩包_全部帧.jpg` — **the compressed package**: every per-second frame collapsed into one master image (the "压缩每一帧的包" you keep inside sheets/).
   - `sheet_XX.jpg` — paginated contact sheets (default 5×9 = 45 frames/page), built by the bundled `scripts/make_sheets.py`. Read these page by page to log beats.
-  - `_cuts.txt` — scene-cut list + beat statistics (only in `--scene-cuts` mode).
-  - `动作模板.md` — **blank action-template skeleton** (from `templates/action-template.md`). Fill the per-sheet tables with real beats; this is the source of truth for the breakdown.
+  - `节奏实录.md` — per-second anchor skeleton (`[待填]` per second); **write-if-missing** so a re-run never overwrites your filled notes.
+  - `动作模板.md` — **blank action-template skeleton** (from `templates/action-template.md`); **write-if-missing** (same protection). This is the source of truth for the breakdown.
+  - `_cuts.txt` — scene-cut list + beat statistics (only with `--scene-cuts`).
   - `参考音轨_原片.wav` — the extracted reference audio (when present), for offline voiceover alignment.
 - `roles/` — **empty by design**; the user drops adapted-character reference images here (e.g. `主角1.jpg`, `主角2.jpg`, `反派3.jpg`). A `README.txt` documents the naming convention. Never put analysis output in here.
-- root: `analysis_bundle.json`, `source_metadata.json`, `contact_sheet.jpg` (single overview), `audio.wav`, `transcript.txt`/`transcript.json` (if `--transcribe`).
+- root: `analysis_bundle.json`, `source_metadata.json`, `audio.wav`, `transcript.txt`/`transcript.json` (if `--transcribe`). **No top-level `contact_sheet.jpg` is generated** — the compressed package lives in `sheets/`.
 
 `make_sheets.py` is invoked automatically by `analyze_video.py`; it can also be run standalone (`python scripts/make_sheets.py --out <dir>`) to rebuild the paginated sheets after tweaking layout, without re-extracting frames.
 

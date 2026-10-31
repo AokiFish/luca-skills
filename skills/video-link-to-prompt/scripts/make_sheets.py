@@ -82,13 +82,15 @@ def main():
         except Exception:
             frames = []
     if not frames:
-        fdir = out / "frames"
-        if fdir.exists():
-            import re
-            for p in sorted(fdir.glob("*.jpg")):
-                m = re.search(r"_(\d+\.\d+)\.jpg$", p.name)
-                ts = float(m.group(1)) if m else 0.0
-                frames.append({"filename": f"frames/{p.name}", "timestamp_seconds": ts})
+        for sub in ("_everysec", "frames"):
+            fdir = out / sub
+            if fdir.exists():
+                import re
+                for p in sorted(fdir.glob("*.jpg")):
+                    m = re.search(r"_(\d+\.\d+)\.jpg$", p.name)
+                    ts = float(m.group(1)) if m else 0.0
+                    frames.append({"filename": f"{sub}/{p.name}", "timestamp_seconds": ts})
+                break
     pages = make_sheets(out, out / "sheets", frames, cols=args.cols, rows=args.rows)
     print(json.dumps({"sheets_dir": str(out / "sheets"), "pages": len(pages),
                       "ranges": [[p["t_start"], p["t_end"]] for p in pages]}, ensure_ascii=False, indent=2))
