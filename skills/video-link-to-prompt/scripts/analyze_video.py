@@ -181,9 +181,9 @@ def transcribe(audio, out_dir, model_name):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     group = ap.add_mutually_exclusive_group(required=True); group.add_argument("--url"); group.add_argument("--file")
-    ap.add_argument("--out", required=True); ap.add_argument("--interval", type=float, default=1.0); ap.add_argument("--max-frames", type=int, default=60)
+    ap.add_argument("--out", required=True); ap.add_argument("--interval", type=float, default=1.0); ap.add_argument("--max-frames", type=int, default=0)
     ap.add_argument("--transcribe", action="store_true"); ap.add_argument("--whisper-model", default="small")
-    ap.add_argument("--scene-cuts", action="store_true", help="Extract one frame per detected scene cut instead of even sampling (denser action evidence for fast-cut videos).")
+    ap.add_argument("--scene-cuts", action="store_true", help="（已弃用）场景切点仅作节奏参考，不影响拆帧；frames/ 始终为逐秒大图。")
     ap.add_argument("--cut-threshold", type=float, default=10.0, help="scdet sensitivity for --scene-cuts on a 0-100 scale; higher = fewer cuts.")
     args = ap.parse_args()
     if args.interval <= 0 or args.max_frames < 0: ap.error("--interval must be > 0 and --max-frames >= 0 (0 = uncapped)")
@@ -213,14 +213,13 @@ def main():
         print(json.dumps(diagnostic, ensure_ascii=False, indent=2)); return 3
     notes = ["Technical extraction only; this script does not semantically interpret visual content.", "Use the host agent's actual image-understanding capability; do not assume it happened automatically."]
     duration = media_info.get("duration_seconds")
-    # 通道1：逐秒帧（默认每秒1帧、不封顶），缩小存 _everysec/ —— sheets 的压缩包与分页小图源
-    everysec = extract_frames(media, out, args.interval, args.max_frames, duration, subdir="_everysec", resize=480)
+    # 通道1：逐秒大图（默认每秒1帧、不封顶），原分辨率大图直接存 frames/ —— 主拆帧输出
+    everysec = extract_frames(media, out, args.interval, args.max_frames, duration, subdir="frames", resize=None)
     frame_error = None if everysec else "No per-second frames extracted"
-    # 通道2：分镜关键帧（scene-cut 检测，自动运行），原分辨率大图存 frames/
+    # 场景切点检测（仅作节奏参考 & 标记切点，不再单独抽大图；逐秒大图已含于 frames/）
     scene_cuts, sc_err = detect_scene_cuts(media, args.cut_threshold, 0)
-    key_frames = []
+    key_frames = []  # 不再单独抽大图关键帧，避免与逐秒大图重复
     if scene_cuts:
-        key_frames = extract_frames(media, out, args.interval, 0, duration, times=scene_cuts, subdir="frames", resize=None)
         print(json.dumps({"scene_cuts_detected": len(scene_cuts), "first_few": scene_cuts[:20], "threshold": args.cut_threshold}, ensure_ascii=False))
     elif sc_err:
         notes.append("Scene-cut detection failed: " + sc_err)
@@ -232,9 +231,9 @@ def main():
     avg_bps = (len(scene_cuts)/duration) if (scene_cuts and duration) else None
     beat_interval = round(1/avg_bps, 2) if avg_bps else None
     if scene_cuts:
-        notes.append(f"Detected {len(scene_cuts)} scene cuts (~{beat_interval}s/beat, {round(avg_bps,2)} beats/sec); 分镜关键帧大图存于 frames/。每个生成单元应容纳数个 beat，而非把慢动作拉成整段。")
-    if args.scene_cuts and not scene_cuts:
-        notes.append("Tip: --scene-cuts 已开但未检测到切点；静态片段的 frames/ 关键帧可能为空。")
+        notes.append(f"Detected {len(scene_cuts)} scene cuts (~{beat_interval}s/beat, {round(avg_bps,2)} beats/sec); 节奏实录.md 以 ✔ 标记切点秒。每个生成单元应容纳数个 beat，而非把慢动作拉成整段。")
+    if not scene_cuts:
+        notes.append("未检测到硬切（静态/渐变转场多的片段）；frames/ 仍为逐秒大图，节奏以逐秒为准。")
     if frame_error: notes.append("Frame extraction issue: " + frame_error)
     if audio_error: notes.append("Audio extraction note: " + audio_error)
 
@@ -244,7 +243,7 @@ def main():
         notes.append("分页缩略图未能生成（Pillow 缺失或无逐秒帧）。请安装 Pillow 或直接读 _everysec/ 单帧后填写。")
     # 切点统计文件（仅 --scene-cuts 时写，作为节奏参考）
     cuts_file = None
-    if args.scene_cuts and scene_cuts:
+    if scene_cuts:
         cuts_file = "sheets/_cuts.txt"
         lines = [f"scene cuts: {len(scene_cuts)}", f"threshold(scdet 0-100): {args.cut_threshold}",
                  f"avg beats/sec: {round(avg_bps, 3) if avg_bps else 'n/a'}", f"avg seconds/beat: {beat_interval if beat_interval else 'n/a'}", ""]
@@ -265,7 +264,7 @@ def main():
                   "|---|---|---|---|"]
         for fr in everysec:
             ts = fr["timestamp_seconds"]
-            has_key = "✔" if any(abs(k["timestamp_seconds"] - ts) < 0.5 for k in key_frames) else ""
+            has_key = "✔" if scene_cuts and any(abs(c - ts) < 0.5 for c in scene_cuts) else ""
             rlines.append(f"| {ts:.0f} | {ts:.2f}s | `[待填]` | {has_key} |")
         rhythm_path.write_text("\n".join(rlines) + "\n", encoding="utf-8")
     # 动作模板.md（已存在则跳过）
@@ -297,7 +296,7 @@ def main():
             section_lines.append("\n> 未生成分页缩略图（Pillow 缺失或无可读帧）。请直接阅读 _everysec/ 单帧后填写。")
         (sheets_dir / "动作模板.md").write_text("\n".join(section_lines) + "\n", encoding="utf-8")
 
-    file_map = {"media_file":str(media),"compressed_archive":contact,"per_second_frames_dir":"_everysec",
+    file_map = {"media_file":str(media),"compressed_archive":contact,"per_second_frames_dir":"frames",
                 "keyframe_dir":"frames","audio":audio,"sheets_dir":"sheets","roles_dir":"roles",
                 "action_template":action_template,"rhythm_record":"sheets/节奏实录.md",
                 "cuts_list":cuts_file,"reference_audio":ref_audio,
