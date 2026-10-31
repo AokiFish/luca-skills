@@ -39,6 +39,12 @@ python skills/video-downloader/scripts/download.py "https://<平台链接>"
 # 指定输出目录
 python skills/video-downloader/scripts/download.py "<URL>" --dir ./videos
 
+# Windows 环境下自动检测系统代理（外网平台走代理，国内平台直连）
+python skills/video-downloader/scripts/download.py "<URL>" --auto-proxy
+
+# 显式指定代理（覆盖 --auto-proxy）
+python skills/video-downloader/scripts/download.py "<URL>" --proxy http://127.0.0.1:10808
+
 # 需要登录/cookie 的平台（抖音、小红书、B站番剧等）
 python skills/video-downloader/scripts/download.py "<URL>" --browser chrome
 # 或导出 cookies.txt 后用：
@@ -75,6 +81,16 @@ yt-dlp -f "bv*+ba/best" --merge-output-format mp4 -o "%(id)s.%(ext)s" "<URL>"
 - yt-dlp：`python -m pip install -U yt-dlp`，或下载 `yt-dlp.exe`。
 - ffmpeg：合并音视频必需，需置于 PATH。详见 `references/install.md`。
 - 本技能 `requirements.txt` 仅列 yt-dlp 作为安装提示。
+
+## 代理（中国大陆网络环境）
+
+在国内访问 YouTube / X / TikTok / Instagram 等外网平台通常需要代理。两种用法：
+
+- **`--auto-proxy`（推荐，Windows）**：自动读 Windows 注册表的系统代理设置；URL 是外网域名时注入代理环境变量，是国内平台（bilibili / 抖音 / 小红书 / 微博 / 知乎 / QQ / 阿里系等）时自动绕过代理直连。
+- **`--proxy http://127.0.0.1:10808`**：显式指定代理，覆盖自动检测。
+- macOS / Linux：直接在 shell 里 `export HTTPS_PROXY=http://127.0.0.1:10808` 再跑脚本即可。
+
+未检测到系统代理时脚本会走直连，不报错。
 
 ## 边界（行为红线）
 - 不绕过任何站点的 DRM、付费墙、登录校验或访问限制。

@@ -13,15 +13,36 @@ Design goals:
 - Clear, parseable output: a final `DOWNLOADED: <abs path>` line.
 - Honest failures: prints the likely cause + the one fix to try next,
   instead of retrying blindly.
+- Optional `--auto-proxy`: on Windows, read the system proxy from the registry
+  and auto-route only overseas platforms through it, leaving CN platforms
+  direct (bypasses proxy).
 """
 
 import argparse
 import os
+import re
 import shutil
 import subprocess
 import sys
 
 DEFAULT_OUT = "./downloads"
+
+# Domains that should NOT go through a proxy (CN platforms and local dev).
+CN_DOMAIN_RE = re.compile(
+    r"(?:^|\.)("
+    r"bilibili\.com|b23\.tv|"
+    r"douyin\.com|douyin\.com\.cn|"
+    r"xiaohongshu\.com|xhslink\.com|"
+    r"weibo\.com|weibo\.cn|"
+    r"zhihu\.com|zhuanlan\.zhihu\.com|"
+    r"baidu\.com|baidubce\.com|"
+    r"qq\.com|tencent\.com|weixin\.qq.com|"
+    r"alibaba\.com|taobao\.com|tmall\.com|alicdn\.com|"
+    r"bilibili\.cn|"
+    r"localhost|127\.0\.0\.1"
+    r")$",
+    re.IGNORECASE,
+)
 
 
 def find_executable(name, extra_dirs=None):
@@ -40,6 +61,48 @@ def find_executable(name, extra_dirs=None):
         if c and os.path.isfile(c) and os.access(c, os.X_OK):
             return c
     return None
+
+
+def detect_windows_system_proxy():
+    """Read Windows registry system proxy. Returns (proxy_str, bypass_list) or (None, None)."""
+    if sys.platform != "win32":
+        return None, None
+    try:
+        import winreg
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Internet Settings",
+        )
+        enable, _ = winreg.QueryValueEx(key, "ProxyEnable")
+        if not enable:
+            return None, None
+        server, _ = winreg.QueryValueEx(key, "ProxyServer")
+        bypass, _ = winreg.QueryValueEx(key, "ProxyOverride") if True else ("",)
+        winreg.CloseKey(key)
+        if not server:
+            return None, None
+        # ProxyServer may be "http=127.0.0.1:10808;https=127.0.0.1:10809" or just "127.0.0.1:10808"
+        m = re.search(r"https?=([^;]+)", server)
+        if m:
+            proxy = m.group(1)
+        elif "=" in server:
+            proxy = server.split("=")[-1]
+        else:
+            proxy = server
+        if not proxy.startswith(("http://", "https://", "socks")):
+            proxy = "http://" + proxy
+        bypass_list = [b.strip() for b in bypass.split(";") if b.strip()] if bypass else []
+        return proxy, bypass_list
+    except Exception:
+        return None, None
+
+
+def is_cn_url(url):
+    m = re.match(r"https?://([^/]+)", url, re.IGNORECASE)
+    if not m:
+        return False
+    host = m.group(1).lower()
+    return bool(CN_DOMAIN_RE.search(host))
 
 
 def diagnose():
@@ -88,6 +151,15 @@ def main():
         "--playlist", action="store_true", help="Download whole playlist/channel, not just one item"
     )
     p.add_argument("--yt-dlp", help="Explicit path to yt-dlp executable")
+    p.add_argument(
+        "--auto-proxy",
+        action="store_true",
+        help="On Windows, auto-detect system proxy from registry and route only overseas platforms through it (CN platforms go direct).",
+    )
+    p.add_argument(
+        "--proxy",
+        help="Explicit proxy URL (e.g. http://127.0.0.1:10808). Overrides --auto-proxy.",
+    )
     args = p.parse_args()
 
     yt = args.yt_dlp or find_executable("yt-dlp")
@@ -107,6 +179,34 @@ def main():
         )
 
     os.makedirs(args.dir, exist_ok=True)
+
+    # --- Proxy routing -------------------------------------------------
+    # If --proxy given, use it unconditionally.
+    # Else if --auto-proxy on Windows, read registry system proxy and only
+    # inject it when the URL is an overseas (non-CN) platform.
+    proxy_to_use = args.proxy
+    if not proxy_to_use and args.auto_proxy:
+        sys_proxy, bypass = detect_windows_system_proxy()
+        if sys_proxy:
+            if is_cn_url(args.url):
+                sys.stderr.write(
+                    f"[auto-proxy] CN platform detected, bypassing system proxy ({sys_proxy})\n"
+                )
+                proxy_to_use = None
+            else:
+                sys.stderr.write(f"[auto-proxy] Overseas platform, using system proxy: {sys_proxy}\n")
+                proxy_to_use = sys_proxy
+        else:
+            sys.stderr.write("[auto-proxy] No Windows system proxy detected, going direct.\n")
+
+    if proxy_to_use:
+        env = os.environ.copy()
+        env["HTTPS_PROXY"] = proxy_to_use
+        env["HTTP_PROXY"] = proxy_to_use
+        env["https_proxy"] = proxy_to_use
+        env["http_proxy"] = proxy_to_use
+    else:
+        env = os.environ.copy()
 
     cmd = [yt]
     if args.cookies:
@@ -147,7 +247,7 @@ def main():
     ]
     cmd.append(args.url)
 
-    proc = subprocess.run(cmd, text=True)
+    proc = subprocess.run(cmd, text=True, env=env)
     if proc.returncode != 0:
         diagnose()
         return proc.returncode

@@ -23,6 +23,9 @@ python -m pip install -U yt-dlp        # 必需
 # 公开视频
 python scripts/download.py "<URL>"
 
+# Windows 下自动走系统代理（外网平台走代理，国内平台直连）
+python scripts/download.py "<URL>" --auto-proxy
+
 # 需要登录态的平台（抖音、小红书、B站番剧等）
 python scripts/download.py "<URL>" --browser chrome
 python scripts/download.py "<URL>" --cookies cookies.txt

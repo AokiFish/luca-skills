@@ -1,0 +1,8 @@
+# video-mix 依赖
+# 本 skill 不依赖 Python 第三方包，只需要：
+#   - ffmpeg + ffprobe（命令行工具，需在 PATH）
+#   - Python 3.8+ 标准库
+# 安装 ffmpeg：
+#   macOS:  brew install ffmpeg
+#   Ubuntu: sudo apt install ffmpeg
+#   Windows: 下载 https://ffmpeg.org/download.html 并把 bin/ 加入 PATH
