@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Extract technical evidence from a URL or local video; does not semantically understand frames."""
 from __future__ import annotations
-import argparse, json, re, shutil, subprocess, sys, time
+import argparse, json, math, re, shutil, subprocess, sys, time
 from pathlib import Path
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 from make_sheets import make_sheets
+from frame_quality import analyze_series
 
 SCHEMA = "video-evidence-v1"
 
@@ -170,33 +171,178 @@ def make_compressed_archive(out_dir, sheets_dir, frames, thumb=(220, 124), cols=
     sheet.save(sheets_dir / name, quality=quality)
     return f"sheets/{name}"
 
-def build_story_board(out_dir, story_board_dir, shots, everysec):
+def _median(vals):
+    vs = sorted(vals); n = len(vs)
+    if not n: return 0.0
+    mid = n // 2
+    return float(vs[mid]) if n % 2 else (vs[mid - 1] + vs[mid]) / 2.0
+
+
+def plan_boards(quality, scene_cuts, duration, min_len=2.0, max_len=5.0, diff_k=1.5):
+    """分镜(board)规划 —— 叙事/拍摄单位，**绝不等同于硬切(hard cut)数量**。
+
+    为什么不能只按硬切分：硬切是「剪辑层」的边界，分镜是「前期叙事 / 拍摄规划层」的单位。
+    一镜到底的段落（本片这类运动衔接长镜头）在叙事上依然要按动作节拍、景别·机位·视点变化
+    继续拆成多个 board；否则 30s 视频只会产出 1–2 个 20s+ 的巨型板，完全失去规划意义。
+
+    综合信号：
+      1) 硬切：真实转场 —— 强制边界
+      2) 帧间差异显著点(diff > 中位数 × diff_k)：动作节拍 / 构图转折
+      3) 最长板长约束 max_len：即便没检测到变化点，也继续按 diff 降序二分，杜绝超长板
+      4) 最短板长约束 min_len：丢弃过碎的候选点
+    """
+    if not quality: return [], {}
+    ts = [q["timestamp_seconds"] for q in quality]
+    end = float(duration) if duration else (max(ts) + 1.0)
+    hard = {round(float(c), 3) for c in (scene_cuts or [])
+            if min_len * 0.5 <= float(c) <= end - min_len * 0.5}
+    diffs = [q["diff"] for q in quality[1:]]
+    thr = _median(diffs) * diff_k
+    beat_pts = []
+    for q in quality[1:]:
+        t = round(q["timestamp_seconds"], 3)
+        if any(abs(t - h) < 0.75 for h in hard): continue   # 该秒已由硬切切开，不重复计
+        if q["diff"] > thr: beat_pts.append((t, q["diff"]))
+    anchors = [0.0] + sorted(hard) + [round(end, 3)]
+    def bisect(a, b, depth=0):
+        if b - a <= max_len or depth > 12: return []
+        # 可用边界只取「已存在的逐秒帧时刻」：切点必须对齐真实证据帧，而不是任意浮点时间
+        internal = [t for t in ts if a + min_len <= t <= b - min_len]
+        if not internal: return []
+        opts = [(t, s) for (t, s) in beat_pts if a + min_len <= t <= b - min_len]
+        if opts:
+            t, _ = max(opts, key=lambda x: x[1])          # 有叙事节拍点 -> 用它（最贴近剪辑意图）
+        else:
+            # 该区间没有显著节拍点：按目标时长等分兜底，绝不留下「因为没有变化点所以不拆」的惰性大板
+            nparts = int(math.ceil((b - a) / max_len))
+            target = a + (b - a) / nparts
+            t = min(internal, key=lambda x: abs(x - target))
+        return [round(t, 3)] + bisect(a, t, depth + 1) + bisect(t, b, depth + 1)
+    extra = set()
+    for i in range(len(anchors) - 1):
+        for t in bisect(anchors[i], anchors[i + 1]): extra.add(round(t, 3))
+    merged = []
+    for t in sorted(set(anchors) | extra):
+        if merged and (t - merged[-1]) < min_len and t not in hard:
+            continue                                        # 过碎候选：并入前一段
+        merged.append(t)
+    if merged[-1] < end - 0.05: merged.append(round(end, 3))
+    boards = []
+    for i in range(len(merged) - 1):
+        a, b = merged[i], merged[i + 1]
+        boards.append({"board_no": i + 1, "t_start": round(a, 3), "t_end": round(b, 3),
+                       "duration": round(b - a, 3),
+                       "start_type": "cut" if (i > 0 and a in hard) else ("beat" if i > 0 else "start")})
+    return boards, {"diff_threshold": round(thr, 2), "min_board_len": min_len,
+                    "max_board_len": max_len, "diff_k": diff_k,
+                    "hard_cut_boundaries": len(hard), "beat_candidates": len(beat_pts)}
+
+
+def pick_representative(quality, t_start, t_end, contrast_gate):
+    """为一格 board 选代表帧：先用 contrast 排除黑场/纯色，再取段内 sharpness 最高的帧。
+
+    刻意**不**取「段落第一帧」或「硬切点帧」——那正是黑场淡入、运动转场的高发位置。
+    """
+    inseg = [q for q in quality if t_start - 1e-6 <= q["timestamp_seconds"] <= t_end + 1e-6]
+    if not inseg: return None, 0
+    good = [q for q in inseg if q["contrast"] >= contrast_gate]
+    rejected = len(inseg) - len(good)
+    pool = good if good else inseg
+    return max(pool, key=lambda q: q["sharpness"]), rejected
+
+
+def select_keyframes(out_dir, quality, boards, contrast_gate, long_board=4.0):
+    """从 frames/ 逐秒帧中挑选「清晰 + 有内容」的关键姿态帧，复制进 key_frame/。
+
+    与旧的「抽硬切点帧」做法决裂：
+      - 硬切点处在运动 / 转场瞬间，恰恰是模糊的高发位置，不能拿来当关键帧；
+      - 每格 board 至少 1 张「代表姿态帧」= 段内最清晰且有内容的帧；
+      - 较长 board 再补 1 张「起始清晰帧」，体现该段动作的起点状态。
+    """
+    src_dir = out_dir / "frames"
+    kdir = out_dir / "key_frame"; kdir.mkdir(parents=True, exist_ok=True)
+    for stale in kdir.glob("keyframe_*.jpg"): safe_remove(stale)
+    stats = {"flat_or_black_rejected": 0, "boards": len(boards)}
+    picks = []
+    for b in boards:
+        inseg = [q for q in quality if b["t_start"] - 1e-6 <= q["timestamp_seconds"] <= b["t_end"] + 1e-6]
+        good = [q for q in inseg if q["contrast"] >= contrast_gate]
+        stats["flat_or_black_rejected"] += len(inseg) - len(good)
+        pool = good if good else inseg
+        if not pool: continue
+        rep = max(pool, key=lambda q: q["sharpness"])
+        picks.append((b, rep, "board_representative"))
+        if b["duration"] >= long_board:
+            mid = b["t_start"] + b["duration"] / 2
+            early = [q for q in pool if q["file"] != rep["file"] and q["timestamp_seconds"] <= mid]
+            if early:
+                picks.append((b, max(early, key=lambda q: q["sharpness"]), "board_opening"))
+    items, seen = [], set()
+    for b, q, role in picks:
+        if q["file"] in seen: continue
+        src = src_dir / q["file"]
+        if not src.exists(): continue
+        dst_name = f"keyframe_b{b['board_no']:02d}_{q['timestamp_seconds']:08.3f}.jpg"
+        try:
+            shutil.copy2(src, kdir / dst_name)
+        except OSError:
+            continue
+        seen.add(q["file"])
+        items.append({"index": 0, "timestamp_seconds": q["timestamp_seconds"],
+                      "file": f"key_frame/{dst_name}", "source_frame": q["file"],
+                      "board_no": b["board_no"], "board_span": f"{b['t_start']:.2f}-{b['t_end']:.2f}s",
+                      "role": role, "sharpness": q["sharpness"], "contrast": q["contrast"]})
+    # 按「镜格 → 时间」排序后统一编号，保证清单顺序与影片顺序一致（否则会出现
+    # board_representative 排在 board_opening 之前这类时间倒挂，读起来像乱排）
+    items.sort(key=lambda x: (x["board_no"], x["timestamp_seconds"]))
+    for i, it in enumerate(items, start=1): it["index"] = i
+    stats["keyframe_count"] = len(items)
+    return items, stats
+
+
+def build_story_board(out_dir, story_board_dir, boards, everysec, plan_info=None):
     """Generate story_board/story_board.md (Obsidian-friendly) and story_board/story_board.html
-    (visual board). Each shot = one panel: representative frame + [待填] annotation fields
-    (景别/机位/运动/关键动作/对白音效). write-if-missing so user edits survive a re-run."""
+    (visual board). 每格 board = 一则叙事/拍摄面板：段内「最清晰且有内容」的代表帧 + [待填]
+    注解字段（景别/机位/运动/关键动作/对白音效）。write-if-missing so user edits survive a re-run.
+
+    两条刻意为之的原则：
+      - board 是叙事规划单位，**不等于硬切数**；一镜到底段落按动作节拍与景别/机位/视点变化继续拆格。
+      - 代表帧取段内 sharpness 最高者，而非段落首帧或硬切点帧——后两者常是黑场淡入或运动转场糊帧。
+    """
     story_board_dir.mkdir(parents=True, exist_ok=True)
     md_path = story_board_dir / "story_board.md"
     html_path = story_board_dir / "story_board.html"
-    dur_total = round(max((s["t_end"] for s in shots), default=0.0), 1)
+    dur_total = round(max((b["t_end"] for b in boards), default=0.0), 1)
+    tag = {"cut": "硬切起始", "beat": "节拍转折", "start": "开片"}.get
     def emb(rep):
         if not rep: return None
-        return "../" + rep  # rep like "key_frame/..." or "frames/..."; story_board is their sibling
-    def sec_in_shot(shot):
+        return "../" + rep  # rep like "frames/..."; story_board 与它同级
+    def secs_in(board):
         return [f["filename"] for f in everysec
-                if shot["t_start"] - 1e-6 <= f["timestamp_seconds"] <= shot["t_end"] + 1e-6]
+                if board["t_start"] - 1e-6 <= f["timestamp_seconds"] <= board["t_end"] + 1e-6]
     if not md_path.exists():
-        md = ["# 分镜板 Storyboard（镜头顺序 · 构图/机位/运镜/动作/对白音效 锚点）\n",
-              f"> 自动生成；共 {len(shots)} 个镜头，总时长约 {dur_total}s。每个镜头一栏，附代表帧与待填注解。\n",
-              "> 代表帧来自 `key_frame/`（切点关键帧，即新镜头首帧）或 `frames/`（逐秒首帧）。\n",
-              "\n## 镜头总览\n",
-              "| 镜号 | 时间区间 | 时长 | 代表帧 |",
-              "|---|---|---|---|"]
-        for s in shots:
-            md.append(f"| {s['shot_no']} | {s['t_start']:.2f}–{s['t_end']:.2f}s | {s['duration']}s | {emb(s['rep_image']) or '—'} |")
-        md.append("\n## 逐镜头注解（待填）\n")
-        for s in shots:
-            secs = sec_in_shot(s); rep = emb(s["rep_image"])
-            md.append(f"\n### 镜头 {s['shot_no']}（{s['t_start']:.2f}–{s['t_end']:.2f}s，时长 {s['duration']}s）\n")
+        md = ["# 分镜板 Storyboard（叙事/拍摄规划单位 · 构图/机位/运镜/动作/对白音效）\n",
+              f"> 自动生成骨架；共 {len(boards)} 格，总时长约 {dur_total}s。注解字段待「看帧」后回填。\n",
+              "> 代表帧 = 该格区间内 **清晰度最高且有画面内容** 的逐秒帧（已排除黑场/纯色与运动模糊帧），刻意不取段落首帧或硬切点帧。\n",
+              "> 分镜不等于硬切数：一镜到底的段落按动作节拍与景别·机位·视点变化继续拆格。\n"]
+        if plan_info:
+            md.append(f"> 规划参数：单格 {plan_info['min_board_len']}–{plan_info['max_board_len']}s，"
+                      f"帧间差异阈值 {plan_info['diff_threshold']}（中位数×{plan_info['diff_k']}），"
+                      f"硬切边界 {plan_info['hard_cut_boundaries']} 处，节拍候选 {plan_info['beat_candidates']} 个。\n")
+        md += ["\n## 分镜总览\n",
+               "| 镜号 | 时间区间 | 时长 | 起始方式 | 代表帧（清晰度） |",
+               "|---|---|---|---|---|"]
+        for b in boards:
+            q = b.get("rep"); line = (f"| {b['board_no']} | {b['t_start']:.2f}–{b['t_end']:.2f}s "
+                                      f"| {b['duration']}s | {tag(b['start_type'])} |")
+            if q and b.get("rep_image"):
+                md.append(f"{line} `{emb(b['rep_image'])}`（{q['sharpness']:.0f}） |")
+            else:
+                md.append(f"{line} — |")
+        md.append("\n## 逐格注解（待填）\n")
+        for b in boards:
+            rep = emb(b.get("rep_image"))
+            md.append(f"\n### 镜 {b['board_no']}（{b['t_start']:.2f}–{b['t_end']:.2f}s · {b['duration']}s · {tag(b['start_type'])}）\n")
             if rep: md.append(f"![代表帧]({rep})\n")
             md.append("| 字段 | 内容（待填） |\n|---|---|")
             md.append("| 景别 | `[待填]` |")
@@ -204,18 +350,23 @@ def build_story_board(out_dir, story_board_dir, shots, everysec):
             md.append("| 运动 | `[待填]` |")
             md.append("| 关键动作 | `[待填]` |")
             md.append("| 对白/音效 | `[待填]` |")
+            secs = secs_in(b)
             if secs:
                 shown = secs[:8]; more = "" if len(secs) <= 8 else f" …（共 {len(secs)} 帧）"
                 md.append(f"\n> 逐秒参考帧：{', '.join(shown)}{more}（位于 `frames/`）\n")
         md_path.write_text("\n".join(md) + "\n", encoding="utf-8")
     if not html_path.exists():
         cards = []
-        for s in shots:
-            rep = emb(s["rep_image"])
-            img = f'<img src="{rep}" alt="shot {s["shot_no"]}">' if rep else '<div class="noimg">无代表帧</div>'
+        for b in boards:
+            rep = emb(b.get("rep_image"))
+            alt = f"board {b['board_no']}"
+            img = f'<img src="{rep}" alt="{alt}">' if rep else '<div class="noimg">无代表帧</div>'
+            q = b.get("rep")
+            sub = f" · {tag(b['start_type'])}"
+            if q: sub += f" · 清晰度 {q['sharpness']:.0f}"
             cards.append(
                 f'<div class="panel">{img}<div class="meta">'
-                f'<h3>镜头 {s["shot_no"]} · {s["t_start"]:.2f}–{s["t_end"]:.2f}s · {s["duration"]}s</h3>'
+                f'<h3>镜 {b["board_no"]} · {b["t_start"]:.2f}–{b["t_end"]:.2f}s · {b["duration"]}s{sub}</h3>'
                 f'<table>'
                 f'<tr><td class="k">景别</td><td class="todo">待填</td></tr>'
                 f'<tr><td class="k">机位</td><td class="todo">待填</td></tr>'
@@ -226,7 +377,7 @@ def build_story_board(out_dir, story_board_dir, shots, everysec):
         html = (
             '<!doctype html><html lang="zh"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1">'
-            f'<title>分镜板 Storyboard · {len(shots)} 镜头</title>'
+            f'<title>分镜板 Storyboard · {len(boards)} 格</title>'
             '<style>'
             'body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,"PingFang SC","Microsoft YaHei",sans-serif;'
             'margin:0;background:#f4f4f5;color:#1f1f1f}'
@@ -241,7 +392,8 @@ def build_story_board(out_dir, story_board_dir, shots, everysec):
             'td{border:1px solid #ececec;padding:5px 7px;vertical-align:top}'
             'td.k{background:#f7f7f9;width:60px;color:#666;font-weight:600}'
             '.todo{color:#c0392b;font-style:italic}</style></head><body>'
-            f'<header><h1>分镜板 Storyboard</h1><p>共 {len(shots)} 个镜头 · 总时长约 {dur_total}s · 代表帧来自 key_frame/ 与 frames/</p></header>'
+            f'<header><h1>分镜板 Storyboard</h1><p>共 {len(boards)} 格 · 总时长约 {dur_total}s'
+            f' · 代表帧取各格最清晰且有内容的帧（frames/）· 分镜不等于硬切数</p></header>'
             '<div class="grid">' + "".join(cards) + '</div></body></html>')
         html_path.write_text(html, encoding="utf-8")
     return ("story_board/story_board.md" if md_path.exists() else None,
@@ -273,7 +425,10 @@ def main():
     ap.add_argument("--out", required=True); ap.add_argument("--interval", type=float, default=1.0); ap.add_argument("--max-frames", type=int, default=0)
     ap.add_argument("--transcribe", action="store_true"); ap.add_argument("--whisper-model", default="small")
     ap.add_argument("--scene-cuts", action="store_true", help="（保留兼容）场景切点始终自动检测，并生成 key_frame/ 关键帧与 story_board/ 分镜板；此开关无额外效果。用 --cut-threshold 调灵敏度。")
-    ap.add_argument("--cut-threshold", type=float, default=10.0, help="scdet sensitivity for --scene-cuts on a 0-100 scale; higher = fewer cuts.")
+    ap.add_argument("--cut-threshold", type=float, default=10.0, help="scdet sensitivity on a 0-100 scale; higher = fewer cuts. Detected cuts are used only as FORCED story-board boundaries, never to pick keyframes.")
+    ap.add_argument("--board-min", type=float, default=2.0, help="最短分镜格时长(秒)；更碎的节拍候选会被并入相邻格，避免把连续动作切散。")
+    ap.add_argument("--board-max", type=float, default=5.0, help="最长分镜格时长(秒)；即使没检测到视觉变化点，超长格也会按帧间差异降序继续二分，杜绝 20s+ 巨型格。")
+    ap.add_argument("--board-diff-k", type=float, default=1.5, help="节拍候选阈值倍数：帧间差异 > 中位数×此值 即视为一处叙事转折候选。调低更敏感、拆得更细。")
     args = ap.parse_args()
     if args.interval <= 0 or args.max_frames < 0: ap.error("--interval must be > 0 and --max-frames >= 0 (0 = uncapped)")
     out = Path(args.out).expanduser().resolve(); out.mkdir(parents=True, exist_ok=True); started = time.time()
@@ -305,9 +460,9 @@ def main():
     # 通道1：逐秒大图（默认每秒1帧、不封顶），原分辨率大图直接存 frames/ —— 主拆帧输出
     everysec = extract_frames(media, out, args.interval, args.max_frames, duration, subdir="frames", resize=None)
     frame_error = None if everysec else "No per-second frames extracted"
-    # 场景切点检测（始终运行）：既作节奏参考，也定义镜头(shot)边界与关键帧(key_frame)
+    # 场景切点检测（始终运行）：仅作为分镜的「强制边界」信号之一，不再是唯一的镜头定义
     scene_cuts, sc_err = detect_scene_cuts(media, args.cut_threshold, 0)
-    # 过滤极短/片头伪切点（scdet 常在 t≈0 误报），避免生成 ~0 时长的退化镜头
+    # 过滤极短/片头伪切点（scdet 常在 t≈0 误报），避免生成 ~0 时长的退化边界
     MIN_CUT_GAP = 0.5
     if scene_cuts:
         _f = []
@@ -316,29 +471,29 @@ def main():
             if _f and _t - _f[-1] < MIN_CUT_GAP: continue
             _f.append(_t)
         scene_cuts = _f
-    key_frame_dir = out / "key_frame"; key_frame_dir.mkdir(parents=True, exist_ok=True)
-    key_frames = []
-    if scene_cuts:
-        key_frames = extract_frames(media, out, args.interval, 0, duration, times=scene_cuts, subdir="key_frame", resize=None, prefix="keyframe")
-        print(json.dumps({"scene_cuts_detected": len(scene_cuts), "keyframe_images": len(key_frames), "first_few": scene_cuts[:20], "threshold": args.cut_threshold}, ensure_ascii=False))
-    elif sc_err:
+    if sc_err:
         notes.append("Scene-cut detection failed: " + sc_err)
     frames = everysec  # bundle.frames = 逐秒帧全量证据（向后兼容 make_sheets 读取）
-    # 镜头(shot) 边界：切点把视频切成 N+1 个镜头；每个切点关键帧是「新镜头」首帧
-    boundaries = sorted(scene_cuts) if scene_cuts else []
-    starts = [0.0] + boundaries
-    ends = boundaries + ([duration] if duration else [])
-    shots = []
-    for i in range(len(starts)):
-        s = starts[i]; e = ends[i] if i < len(ends) else (duration or s)
-        if i == 0:
-            cand = [f["filename"] for f in everysec if f["timestamp_seconds"] >= -1e-6]
-            rep = cand[0] if cand else None
-        else:
-            rep = key_frames[i-1]["filename"] if (i-1) < len(key_frames) else None
-        shots.append({"shot_no": i+1, "t_start": round(s,3), "t_end": round(e,3),
-                      "duration": round(e-s,3), "rep_image": rep})
-    shot_count = len(shots)
+    # ---- 帧级视觉评估：清晰度 / 对比度(排除黑场与纯色) / 帧间差异 ----
+    quality = analyze_series([(f["timestamp_seconds"], out / Path(f["filename"])) for f in everysec]) if everysec else []
+    _contrasts = [q["contrast"] for q in quality] or [0.0]
+    contrast_gate = max(12.0, _median(_contrasts) * 0.35)  # 低于此值视为黑场/纯色等无信息画面
+    # ---- 分镜(board)规划：叙事/拍摄单位，绝不等于硬切数 ----
+    boards, plan_info = plan_boards(quality, scene_cuts, duration,
+                                    min_len=args.board_min, max_len=args.board_max, diff_k=args.board_diff_k)
+    plan_info["contrast_gate"] = round(contrast_gate, 1)
+    # 每格代表帧 = 段内「有内容且最清晰」的帧。刻意不取段落首帧/硬切点帧：那是黑场淡入与运动模糊的高发位置。
+    for b in boards:
+        rep, _rej = pick_representative(quality, b["t_start"], b["t_end"], contrast_gate)
+        b["rep"] = rep
+        b["rep_image"] = ("frames/" + rep["file"]) if rep else None
+    shot_count = len(boards)
+    # ---- 关键帧：不再抽硬切点帧，改为按清晰度从逐秒帧里筛选「关键姿态帧」 ----
+    key_frame_dir = out / "key_frame"; key_frame_dir.mkdir(parents=True, exist_ok=True)
+    kf_items, kf_stats = select_keyframes(out, quality, boards, contrast_gate)
+    print(json.dumps({"scene_cuts_detected": len(scene_cuts), "boards": len(boards),
+                      "keyframes_selected": len(kf_items), "contrast_gate": round(contrast_gate, 1),
+                      "plan": plan_info}, ensure_ascii=False))
     # sheets 压缩包：所有逐秒帧压成一张总图（压缩每一帧的包）
     contact = make_compressed_archive(out, sheets_dir, everysec)
     audio, audio_error = extract_audio(media, out) if media_info.get("audio_present") else (None, "No audio stream reported")
@@ -349,7 +504,10 @@ def main():
         notes.append(f"Detected {len(scene_cuts)} scene cuts (~{beat_interval}s/beat, {round(avg_bps,2)} beats/sec); 节奏实录.md 以 ✔ 标记切点秒。每个生成单元应容纳数个 beat，而非把慢动作拉成整段。")
     if not scene_cuts:
         notes.append("未检测到硬切（静态/渐变转场多的片段）；frames/ 仍为逐秒大图，节奏以逐秒为准。")
-    notes.append(f"关键帧已写入 key_frame/（{len(key_frames)} 张硬切关键帧，即各新镜头首帧）；分镜板已写入 story_board/（{shot_count} 个镜头，含代表帧与待填注解）。")
+    notes.append(f"关键帧已写入 key_frame/（{len(kf_items)} 张，按清晰度从逐秒帧筛选的代表姿态帧；"
+                 f"已按对比度排除黑场/纯色候选 {kf_stats.get('flat_or_black_rejected', 0)} 帧）；"
+                 f"分镜板已写入 story_board/（{shot_count} 格，代表帧取各格最清晰帧；"
+                 f"分镜按叙事节拍+时长约束拆分，不等于硬切数）。")
     if frame_error: notes.append("Frame extraction issue: " + frame_error)
     if audio_error: notes.append("Audio extraction note: " + audio_error)
 
@@ -415,49 +573,54 @@ def main():
     # ---- key_frame 关键帧清单 + story_board 分镜板（见 build_story_board） ----
     keyframe_manifest = None
     story_md = story_html = None
-    kf_list = []
-    for i, kf in enumerate(key_frames):
-        ts = kf["timestamp_seconds"]
-        prev_dur = round(ts - (scene_cuts[i-1] if i > 0 else 0.0), 3)
-        kf_list.append({"index": i+1, "timestamp_seconds": ts, "filename": kf["filename"],
-                        "begins_shot": i+2, "prev_shot_duration": prev_dur, "transition": "cut"})
-    manifest = {"schema": "keyframe-manifest-v1", "cut_threshold": args.cut_threshold,
-                "keyframe_count": len(key_frames), "keyframes": kf_list}
-    if key_frames:
-        manifest["note"] = "关键帧=场景硬切点，即每个新镜头的首帧；渐变/静态转场不会被 scdet 捕获。"
-    else:
-        manifest["note"] = "未检测到硬切（渐变/静态转场为主）；可在更低的 --cut-threshold 下重跑以多抓关键帧，或直接从 frames/ 逐秒帧自行挑选。"
+    kf_list = kf_items
+    manifest = {"schema": "keyframe-manifest-v2",
+                "selection": "清晰度筛选 + 段内代表姿态（已废弃『抽硬切点帧』：切点处于运动/转场瞬间，是运动模糊的高发位置）",
+                "cut_threshold_for_boundaries": args.cut_threshold,
+                "contrast_gate": round(contrast_gate, 1),
+                "plan": plan_info, "stats": kf_stats,
+                "keyframe_count": len(kf_items), "keyframes": kf_list}
+    manifest["note"] = ("每个关键帧是某格分镜(board)内『清晰度最高且有画面内容』的姿态帧；"
+                        "已按 contrast 排除黑场/纯色帧，并按 sharpness 规避运动模糊帧。")
     write_json(key_frame_dir / "key_frame_manifest.json", manifest)
     keyframe_manifest = "key_frame/key_frame_manifest.json"
     mlines = ["# 关键帧清单 Keyframe Manifest\n",
-              f"> 切点阈值(scdet 0–100)：{args.cut_threshold}；共 {len(key_frames)} 个硬切关键帧。\n",
-              "> 每个关键帧 = 一个新镜头的首帧（begins_shot）。\n",
-              "| # | 时间 | 开启镜头 | 上一镜头时长 | 转场 | 文件 |",
-              "|---|---|---|---|---|---|"]
+              f"> 共 {len(kf_items)} 个关键帧；筛选口径：每格分镜内 **清晰度最高且有内容** 的帧。\n",
+              f"> 被判为黑场/纯色而排除的候选 {kf_stats.get('flat_or_black_rejected', 0)} 帧（对比度低于 {contrast_gate:.1f}）；"
+              f"硬切阈值(scdet 0–100) {args.cut_threshold} 仅用于分镜强制边界，不再用来抽关键帧。\n",
+              "> role：board_representative = 该格代表姿态帧；board_opening = 较长板的起始清晰帧。\n",
+              "| # | 时间 | 所属镜格 | 区间 | 角色 | 清晰度 | 对比度 | 文件 |",
+              "|---|---|---|---|---|---|---|---|"]
     for k in kf_list:
-        mlines.append(f"| {k['index']} | {k['timestamp_seconds']:.3f}s | 镜头{k['begins_shot']} | {k['prev_shot_duration']}s | {k['transition']} | `{k['filename']}` |")
+        role = "代表姿态" if k["role"] == "board_representative" else "起始清晰"
+        mlines.append(f"| {k['index']} | {k['timestamp_seconds']:.3f}s | 镜{k['board_no']} | {k['board_span']} "
+                      f"| {role} | {k['sharpness']:.0f} | {k['contrast']:.0f} | `{k['file']}` |")
     if not kf_list:
-        mlines.append("| — | — | — | — | — | 无（见上方 note） |")
+        mlines.append("| — | — | — | — | — | — | — | 无（见上方 note） |")
     (key_frame_dir / "key_frame_manifest.md").write_text("\n".join(mlines) + "\n", encoding="utf-8")
-    story_md, story_html = build_story_board(out, out / "story_board", shots, everysec)
+    story_md, story_html = build_story_board(out, out / "story_board", boards, everysec, plan_info)
 
     file_map = {"media_file":str(media),"compressed_archive":contact,"per_second_frames_dir":"frames",
                 "keyframe_dir":"key_frame","keyframe_manifest":keyframe_manifest,
                 "story_board_dir":"story_board","story_board_md":story_md,"story_board_html":story_html,
-                "shot_count":shot_count,"audio":audio,"sheets_dir":"sheets","roles_dir":"roles",
+                "board_count":len(boards),"shot_count":shot_count,"audio":audio,"sheets_dir":"sheets","roles_dir":"roles",
                 "action_template":action_template,"rhythm_record":"sheets/节奏实录.md",
                 "cuts_list":cuts_file,"reference_audio":ref_audio,
-                "sheet_pages":[p["file"] for p in pages],"keyframe_count":len(key_frames),"per_second_count":len(everysec)}
+                "sheet_pages":[p["file"] for p in pages],"keyframe_count":len(kf_items),"per_second_count":len(everysec)}
     if transcript and transcript.get("ok"): file_map.update({"transcript_text":"transcript.txt","transcript_json":"transcript.json"})
     bundle = {"schema_version":SCHEMA,"status":"ok" if everysec else "partial","source":source,"media":media_info,
-              "extraction":{"sampling_interval_seconds":args.interval,"max_frames":args.max_frames,"per_second_count":len(everysec),"shot_count":shot_count,
-                            "keyframe_count":len(key_frames),"scene_cut_mode":bool(args.scene_cuts),
+              "extraction":{"sampling_interval_seconds":args.interval,"max_frames":args.max_frames,"per_second_count":len(everysec),
+                            "board_count":len(boards),"shot_count":shot_count,
+                            "board_min_len":args.board_min,"board_max_len":args.board_max,"board_diff_k":args.board_diff_k,
+                            "contrast_gate":round(contrast_gate,1),"plan":plan_info,
+                            "keyframe_count":len(kf_items),"scene_cut_mode":bool(args.scene_cuts),
                             "scene_cuts":len(scene_cuts) if scene_cuts else None,"cut_threshold":args.cut_threshold,
                             "avg_beats_per_second":avg_bps,"audio_extracted":bool(audio),"transcription_requested":args.transcribe,"transcription":transcript},
               "frames":everysec,"files":file_map,"notes":notes,"elapsed_seconds":round(time.time()-started,2)}
     write_json(out / "analysis_bundle.json", bundle)
-    print(json.dumps({"status":bundle["status"],"out_dir":str(out),"per_second_count":len(everysec),"keyframe_count":len(key_frames),
-                      "shot_count":shot_count,"scene_cuts":len(scene_cuts) if scene_cuts else None,"avg_beats_per_second":avg_bps,
+    print(json.dumps({"status":bundle["status"],"out_dir":str(out),"per_second_count":len(everysec),"keyframe_count":len(kf_items),
+                      "board_count":len(boards),"scene_cuts":len(scene_cuts) if scene_cuts else None,"avg_beats_per_second":avg_bps,
+                      "contrast_gate":round(contrast_gate,1),"plan":plan_info,
                       "compressed_archive":contact,"sheets_pages":len(pages),"rhythm_record":"sheets/节奏实录.md",
                       "action_template":action_template,"story_board_md":story_md,"story_board_html":story_html,
                       "keyframe_manifest":keyframe_manifest,"audio_extracted":bool(audio),"bundle":str(out/"analysis_bundle.json"),"notes":notes}, ensure_ascii=False, indent=2))

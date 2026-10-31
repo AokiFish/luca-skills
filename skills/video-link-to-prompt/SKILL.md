@@ -44,8 +44,8 @@ python scripts/analyze_video.py --url "VIDEO_URL" --out ./video-analysis --trans
 
 ### Sampling strategy (this decides report fidelity)
 - **Default = per-second, full-coverage (逐秒逐帧解析)**: the script samples **one frame per second across the whole clip, uncapped** (`--interval 1 --max-frames 0`). A 533s clip yields ~533 per-second frames; nothing is skipped or capped. These land in `frames/` as **full-resolution big images** — the baseline evidence for reading every second in detail.
-- **关键帧 `key_frame/`（场景切点）**: scene-cut detection (ffmpeg `scdet`, `--cut-threshold` 0–100, higher = fewer cuts) runs **automatically** and writes **large original-resolution keyframe images into `key_frame/`** — one big image per detected shot change. Each cut frame is the **first frame of a new shot** (this is the video's 关键帧). A `key_frame_manifest.json/.md` lists every keyframe's timestamp, which shot it opens, the previous shot's duration, and the transition type (cut). Slow/cinematic clips with dissolves won't trigger `scdet`, so `key_frame/` may be sparse — lower `--cut-threshold` to catch more, or pick your own from `frames/`.
-- **分镜板 `story_board/`（镜头顺序）**: the shot list (split by the `key_frame/` cuts) is rendered as a **storyboard** in `story_board/` — both `story_board.md` (Obsidian-friendly, with each shot's representative frame + `[待填]` annotation fields: 景别/机位/运动/关键动作/对白音效) and `story_board.html` (visual board, one card per shot). **write-if-missing** so a re-run never overwrites filled notes. With no detected cuts it degrades to a single shot.
+- **关键帧 `key_frame/`（清晰度筛选 + 段内代表姿态，不是「抽切点帧」）**: 关键帧的语义是「定义动作/形变起止状态的关键画面」，必须**清晰且有信息量**；运动模糊的中间帧恰恰最不该选，而硬切点又正好落在运动/转场瞬间。因此脚本对 `frames/` 逐秒帧做帧级评估（`scripts/frame_quality.py`）：先用 **contrast（灰度标准差）排除黑场/纯色**，再在每格分镜内取 **sharpness（Laplacian 方差）最高的帧** 作为该格代表姿态帧；较长的分镜格再补一张「起始清晰帧」。`key_frame_manifest.json/.md` 记录每帧时间、所属镜格、角色（board_representative / board_opening）、sharpness、contrast，以及被判为黑场/纯色而排除的候选数。**绝不用 `--cut-threshold` 去抽关键帧。**
+- **分镜板 `story_board/`（叙事/拍摄规划单位，≠ 硬切数）**: 分镜不是「数硬切」，而是按**叙事节拍 / 动作转折 / 景别·机位·视点变化**拆格；一镜到底的段落同样要拆。`plan_boards()` 综合四类信号分段：① 硬切（强制边界）② 帧间差异显著点（`--board-diff-k`，默认 `diff > 中位数×1.5`）③ 最长格时长 `--board-max`（默认 5s；超长格按差异降序二分，确实无变化点时按目标时长**等分兜底**，杜绝 20s+ 惰性大板）④ 最短格时长 `--board-min`（默认 2s；过碎候选并入相邻格）。每格代表帧取「段内最清晰且有内容」的帧（**不取段落首帧/硬切点帧**）。产出 `story_board.md`（Obsidian 友好：代表帧 + `[待填]` 景别/机位/运动/关键动作/对白音效 + 起始方式 + 清晰度）与 `story_board.html`（可视化分镜，每格一卡）。**write-if-missing**，重跑不覆盖已填注解。
 - **sheets/ holds both the compressed package and the paginated thumbnails**:
   - `压缩包_全部帧.jpg` — **one dense master image collapsing every per-second frame into a single file** (the "压缩每一帧的包" you keep).
   - `sheet_XX.jpg` — the same per-second frames laid out as readable **paginated thumbnails** (default 5×9 = 45/page).
@@ -163,8 +163,8 @@ Slug rules:
 `analyze_video.py` writes the following under `--out`:
 
 - `frames/` — **逐秒全分辨率大图**（默认每秒 1 帧、不封顶，`--max-frames 0`）。主拆帧证据，用于逐秒精读画面；不是缩略图。
-- `key_frame/` — **关键帧（Keyframe）**：场景硬切点检测（ffmpeg `scdet`，阈值 `--cut-threshold` 0–100，越高越少切）产出的大图，每个切点 = 一个新镜头的首帧。配套 `key_frame_manifest.json/.md`（每帧时间戳、开启镜头号、上一镜头时长、转场类型）。渐变/静态转场不会被 `scdet` 捕获，故慢节奏片段可能只有少量关键帧——此时可下调阈值重跑，或从 `frames/` 自行挑选。
-- `story_board/` — **分镜板（Storyboard）**：按镜头（shot）顺序生成的板。`story_board.md`（Obsidian 友好，含代表帧与 `[待填]` 注解：景别/机位/运动/关键动作/对白音效）与 `story_board.html`（可视化分镜，每镜一卡、代表帧 + 待填栏）。**write-if-missing**，重跑不覆盖已填注解。镜头由 `key_frame/` 的切点切分；无切点时退化为单镜头。
+- `key_frame/` — **关键帧（Keyframe）**：从 `frames/` 逐秒帧中按**清晰度筛选**出的关键姿态帧（每格分镜的代表姿态帧 + 较长格的起始清晰帧），已用 contrast 排除黑场/纯色、用 sharpness 规避运动模糊。**不是**硬切点帧。配套 `key_frame_manifest.json/.md`（时间、所属镜格、角色、sharpness、contrast、被排除的黑场候选数）。
+- `story_board/` — **分镜板（Storyboard，叙事/拍摄规划单位）**：按叙事节拍+时长约束拆格（**不是按硬切数**），一镜到底段落也拆。`story_board.md`（Obsidian 友好：代表帧 + `[待填]` 景别/机位/运动/关键动作/对白音效 + 起始方式 + 清晰度）与 `story_board.html`（可视化分镜，每格一卡）。**write-if-missing**，重跑不覆盖已填注解。代表帧取格内最清晰且有内容的帧，不取段落首帧/硬切点帧。
 - `sheets/` — 节奏/动作证据包：
   - `压缩包_全部帧.jpg` — **压缩包**：所有逐秒帧压成一张总图（你保留的"压缩每一帧的包"）。
   - `sheet_XX.jpg` — 分页缩略图（默认 5×9 = 45 帧/页），由 `make_sheets.py` 生成，逐页精读节拍。

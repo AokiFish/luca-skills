@@ -3,7 +3,8 @@
 Portable Skill for WorkBuddy, Codex, and other agents that can read `SKILL.md` and execute local scripts.
 
 ## Included
-- `scripts/analyze_video.py`: URL/local-file retrieval, FFprobe metadata, per-second + scene-cut frame extraction, keyframe manifest, storyboard generation, optional audio extraction and transcription.
+- `scripts/analyze_video.py`: URL/local-file retrieval, FFprobe metadata, per-second frame extraction, frame-quality scoring, keyframe selection, narrative storyboard planning, optional audio extraction and transcription.
+- `scripts/frame_quality.py`: Pillow-only frame metrics (Laplacian-variance sharpness, grayscale contrast, frame-to-frame diff) used to reject black/blurred frames and to find beat boundaries.
 - `scripts/vision_api_analyze.py`: optional adapter for an OpenAI-compatible multimodal API.
 - `templates/vision-analysis-instructions.md`: how the host agent should inspect extracted frames.
 - `templates/master-prompt.md`: reusable prompt template with fixed rules and replaceable variables.
@@ -41,10 +42,13 @@ python scripts/analyze_video.py --url "VIDEO_URL" --out ./video-analysis --trans
 ```
 
 ### Keyframes + storyboard (always on)
-Scene-cut detection (ffmpeg `scdet`) runs on every run. It writes one large keyframe image per detected cut into `key_frame/` (each cut = first frame of a new shot) plus a `key_frame_manifest.json/.md`, and renders a shot-by-shot `story_board/` (Markdown + visual HTML). The cut count + average beats/second are recorded in `analysis_bundle.json` so the report can list **ordered action beats, camera position/movement, shot size, sound, per-segment color tone, and end-frame anchors** per unit. Tune sensitivity with `--cut-threshold` (0–100; lower = more cuts).
+Keyframes and the storyboard are generated on every run, but **neither is derived from the hard-cut count**:
+
+- **Keyframes (`key_frame/`)** — a keyframe means *the clear state frame that defines the start/end of an action or a change*. Motion-blurred in-between frames are exactly what must NOT be picked, and a hard-cut point sits right at a motion/transition instant. So the script scores every per-second frame (`scripts/frame_quality.py`): it first uses **contrast (grayscale std-dev) to reject black/flat frames**, then takes the **highest-sharpness (Laplacian variance) frame within each storyboard cell** as that cell's representative pose frame (longer cells also get an "opening clear frame"). The manifest records time, cell, role, sharpness, contrast, and how many flat/black candidates were rejected. `--cut-threshold` is **not** used for keyframes.
+- **Storyboard (`story_board/`)** — a storyboard is a *narrative / shooting-planning unit*, not a hard-cut counter. Cuts are only one (forced) boundary; cells are also split by **frame-to-frame visual change (beats)**, plus a **max cell length** (`--board-max`, default 5s; over-long cells are bisected, with an equal-time fallback when no change point exists) and a **min cell length** (`--board-min`, default 2s). A one-take sequence is still split into multiple cells. Each cell's representative frame is its clearest informative frame — never the first frame and never the cut frame. Output: `story_board.md` (Obsidian-friendly) + `story_board.html` (one visual card per cell).
 
 ```bash
-python scripts/analyze_video.py --file ./reference.mp4 --out ./video-analysis --cut-threshold 10
+python scripts/analyze_video.py --file ./reference.mp4 --out ./video-analysis --board-max 5 --board-min 2 --board-diff-k 1.5
 ```
 
 `--cut-threshold` is on a 0–100 scale (percent of frame change); raise it if too many cuts are detected, lower it if fast cuts are missed.
@@ -77,8 +81,8 @@ Review the provider's privacy, cost and retention terms before sending frames. D
 - `analysis_bundle.json`: evidence inventory and technical metadata
 - `source_metadata.json`: source and retrieval details
 - `frames/`: per-second full-resolution frames (the baseline evidence; one frame/sec, uncapped)
-- `key_frame/`: **keyframes** — one large image per detected scene cut (each cut = first frame of a new shot), plus `key_frame_manifest.json/.md`
-- `story_board/`: **storyboard** — `story_board.md` (shot list + [待填] annotations: 景别/机位/运动/关键动作/对白音效) and `story_board.html` (visual board, one card per shot)
+- `key_frame/`: **keyframes** — per-cell representative pose frames picked by **sharpness + contrast filtering** (never cut frames), plus `key_frame_manifest.json/.md`
+- `story_board/`: **storyboard** — narrative cells (not cut count) with representative frames; `story_board.md` ([待填] annotations: 景别/机位/运动/关键动作/对白音效) and `story_board.html` (visual board, one card per cell)
 - `sheets/`: **rhythm/action evidence package** (created automatically)
   - `压缩包_全部帧.jpg`: every per-second frame collapsed into one master image
   - `sheet_XX.jpg`: paginated contact sheets (default 5×9/page) for page-by-page review
