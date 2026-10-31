@@ -40,6 +40,15 @@ python -m pip install faster-whisper
 python scripts/analyze_video.py --url "VIDEO_URL" --out ./video-analysis --transcribe
 ```
 
+### Dense / rhythm analysis (recommended for fast-cut or long videos)
+For animation, comedy, music videos, or anything whose exact rhythm matters, extract one frame per detected scene cut instead of even sampling. This grounds every action beat in a real frame and records the cut count + average beats/second in `analysis_bundle.json` — the report then lists **ordered action beats, camera position/movement, shot size, sound, per-segment color tone, and end-frame anchors** per unit, ready to regenerate with a different character.
+
+```bash
+python scripts/analyze_video.py --file ./reference.mp4 --out ./video-analysis --scene-cuts --cut-threshold 10 --max-frames 600
+```
+
+`--cut-threshold` is on a 0–100 scale (percent of frame change); raise it if too many cuts are detected, lower it if fast cuts are missed.
+
 ## Host agent workflow
 1. Run the extraction script.
 2. Read `analysis_bundle.json` and `source_metadata.json`.
@@ -68,7 +77,13 @@ Review the provider's privacy, cost and retention terms before sending frames. D
 - `analysis_bundle.json`: evidence inventory and technical metadata
 - `source_metadata.json`: source and retrieval details
 - `frames/`: timestamped keyframes
-- `contact_sheet.jpg`: overview of sampled frames
+- `sheets/`: **rhythm/action evidence package** (created automatically)
+  - `sheet_XX.jpg`: paginated contact sheets (default 5×9/page) for page-by-page review
+  - `_cuts.txt`: scene-cut list + beat stats (scene-cut mode only)
+  - `动作模板.md`: blank action-template skeleton to fill with real beats
+  - `参考音轨_原片.wav`: extracted reference audio, if available
+- `roles/`: **empty by design** — drop adapted-character reference images here (e.g. `主角1.jpg`); a `README.txt` explains the naming
+- `contact_sheet.jpg`: single overview of sampled frames
 - `audio.wav`: extracted audio, if available
 - `transcript.txt` / `transcript.json`: optional transcription
 - `access_diagnostic.json`: error details and fallback suggestions

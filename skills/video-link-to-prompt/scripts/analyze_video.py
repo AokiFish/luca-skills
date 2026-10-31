@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """Extract technical evidence from a URL or local video; does not semantically understand frames."""
 from __future__ import annotations
-import argparse, json, shutil, subprocess, sys, time
+import argparse, json, re, shutil, subprocess, sys, time
 from pathlib import Path
+
+_SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
+from make_sheets import make_sheets
 
 SCHEMA = "video-evidence-v1"
 
@@ -59,15 +64,39 @@ def probe(path):
     except Exception: pass
     return {"ok": True, "duration_seconds": duration, "format_name": fmt.get("format_name"), "size_bytes": fmt.get("size"), "width": v.get("width"), "height": v.get("height"), "fps": fps, "video_codec": v.get("codec_name"), "audio_present": bool(a), "audio_codec": a.get("codec_name") if a else None}
 
-def extract_frames(media, out_dir, interval, max_frames, duration):
+def detect_scene_cuts(media, threshold, max_frames):
+    """Return list of scene-cut timestamps via ffmpeg scdet filter. None on failure.
+    threshold is on scdet's 0-100 scale (percent of frame change)."""
+    if not shutil.which("ffmpeg"): return None, "ffmpeg not installed"
+    try:
+        p = run(["ffmpeg", "-hide_banner", "-i", str(media),
+                 "-filter:v", f"scdet=threshold={threshold}",
+                 "-f", "null", "-"], 300)
+        cuts = []
+        for line in (p.stderr or "").splitlines():
+            m = re.search(r"lavfi\.scd\.time:\s*(\d+\.?\d*)", line)
+            if m:
+                cuts.append(round(float(m.group(1)), 3))
+        seen = set(); uniq = []
+        for c in cuts:
+            if c not in seen:
+                seen.add(c); uniq.append(c)
+        if max_frames and len(uniq) > max_frames:
+            uniq = uniq[:max_frames]
+        return uniq, None
+    except Exception as e:
+        return None, f"{type(e).__name__}: {e}"
+
+def extract_frames(media, out_dir, interval, max_frames, duration, times=None):
     if not shutil.which("ffmpeg"): raise RuntimeError("ffmpeg is not installed or not on PATH")
     folder = out_dir / "frames"; folder.mkdir(parents=True, exist_ok=True)
-    times = []
-    if duration and duration > 0:
-        t = 0.0
-        while t < duration and len(times) < max_frames:
-            times.append(t); t += interval
-    else: times = [i * interval for i in range(max_frames)]
+    if times is None:
+        times = []
+        if duration and duration > 0:
+            t = 0.0
+            while t < duration and len(times) < max_frames:
+                times.append(t); t += interval
+        else: times = [i * interval for i in range(max_frames)]
     records = []
     for t in times:
         idx = len(records) + 1
@@ -121,9 +150,17 @@ def main():
     group = ap.add_mutually_exclusive_group(required=True); group.add_argument("--url"); group.add_argument("--file")
     ap.add_argument("--out", required=True); ap.add_argument("--interval", type=float, default=1.0); ap.add_argument("--max-frames", type=int, default=60)
     ap.add_argument("--transcribe", action="store_true"); ap.add_argument("--whisper-model", default="small")
+    ap.add_argument("--scene-cuts", action="store_true", help="Extract one frame per detected scene cut instead of even sampling (denser action evidence for fast-cut videos).")
+    ap.add_argument("--cut-threshold", type=float, default=10.0, help="scdet sensitivity for --scene-cuts on a 0-100 scale; higher = fewer cuts.")
     args = ap.parse_args()
     if args.interval <= 0 or args.max_frames < 1: ap.error("--interval must be > 0 and --max-frames >= 1")
     out = Path(args.out).expanduser().resolve(); out.mkdir(parents=True, exist_ok=True); started = time.time()
+    sheets_dir = out / "sheets"; sheets_dir.mkdir(parents=True, exist_ok=True)
+    roles_dir = out / "roles"; roles_dir.mkdir(parents=True, exist_ok=True)
+    (roles_dir / "README.txt").write_text(
+        "把改编角色的参考图放在这里，供 image-reference-to-prompt 生成角色卡。\n"
+        "建议命名：主角1.jpg / 主角2.jpg / 反派3.jpg … 与分镜报告里的占位符一一对应。\n"
+        "本目录由 video-link-to-prompt 自动创建，保持为空，仅用于存放你的角色图。\n", encoding="utf-8")
     source = {"type": "url" if args.url else "file", "url": args.url, "input_file": args.file}
     if args.url: media, retrieval = download_url(args.url, out)
     else:
@@ -141,19 +178,83 @@ def main():
         diagnostic = {"status":"failed","stage":"probe","media_file":str(media),"error":media_info.get("error"),"next_steps":["Check FFmpeg/FFprobe installation.","Try a valid local media file."]}
         write_json(out / "access_diagnostic.json", diagnostic); write_json(out / "analysis_bundle.json", {"schema_version":SCHEMA,"status":"failed","source":source,"media":media_info,"extraction":{},"frames":[],"files":{},"notes":[diagnostic["error"]]})
         print(json.dumps(diagnostic, ensure_ascii=False, indent=2)); return 3
-    try: frames = extract_frames(media, out, args.interval, args.max_frames, media_info.get("duration_seconds")); frame_error = None
+    notes = ["Technical extraction only; this script does not semantically interpret visual content.", "Use the host agent's actual image-understanding capability; do not assume it happened automatically."]
+    scene_cuts = None
+    if args.scene_cuts:
+        scene_cuts, sc_err = detect_scene_cuts(media, args.cut_threshold, args.max_frames)
+        if scene_cuts:
+            print(json.dumps({"scene_cuts_detected": len(scene_cuts), "first_few": scene_cuts[:20], "threshold": args.cut_threshold}, ensure_ascii=False))
+        elif sc_err:
+            notes.append("Scene-cut detection failed: " + sc_err)
+    try: frames = extract_frames(media, out, args.interval, args.max_frames, media_info.get("duration_seconds"), times=scene_cuts); frame_error = None
     except Exception as e: frames=[]; frame_error=f"{type(e).__name__}: {e}"
     contact = make_contact_sheet(out, frames)
     audio, audio_error = extract_audio(media, out) if media_info.get("audio_present") else (None, "No audio stream reported")
     transcript = transcribe(out/audio, out, args.whisper_model) if args.transcribe and audio else None
-    notes = ["Technical extraction only; this script does not semantically interpret visual content.", "Evenly sampled frames may miss fast cuts and brief actions.", "Use the host agent's actual image-understanding capability; do not assume it happened automatically."]
+    if args.scene_cuts:
+        notes.append("Frames extracted at detected scene cuts; each frame approximates the start of a new shot/beat.")
+        if scene_cuts and media_info.get("duration_seconds"):
+            bps = len(scene_cuts) / media_info["duration_seconds"]
+            notes.append(f"Detected {len(scene_cuts)} scene cuts; ~{round(1/bps,2)}s per beat ({round(bps,2)} beats/sec). Size each generation unit to hold several beats, not one slow action.")
+    else:
+        notes.append("Evenly sampled frames may miss fast cuts and brief actions; use --scene-cuts for rhythm-critical analysis.")
     if frame_error: notes.append("Frame extraction issue: " + frame_error)
     if audio_error: notes.append("Audio extraction note: " + audio_error)
-    file_map = {"media_file":str(media),"contact_sheet":contact,"audio":audio}
+
+    # ---- Build the sheets/ evidence package (action template + paginated sheets + cuts + reference audio) ----
+    avg_bps = (len(scene_cuts) / media_info["duration_seconds"]) if (scene_cuts and media_info.get("duration_seconds")) else None
+    beat_interval = round(1 / avg_bps, 2) if avg_bps else None
+    cuts_file = None
+    if scene_cuts:
+        cuts_file = "sheets/_cuts.txt"
+        lines = [f"scene cuts: {len(scene_cuts)}", f"threshold(scdet 0-100): {args.cut_threshold}",
+                 f"avg beats/sec: {round(avg_bps, 3) if avg_bps else 'n/a'}", f"avg seconds/beat: {beat_interval if beat_interval else 'n/a'}", ""]
+        lines += [f"{i+1:04d}\t{t}s" for i, t in enumerate(scene_cuts)]
+        (sheets_dir / "_cuts.txt").write_text("\n".join(lines), encoding="utf-8")
+    pages = make_sheets(out, sheets_dir, frames)
+    if not pages:
+        notes.append("Paginated contact sheets could not be built (Pillow missing or no frames). Install Pillow or read frames/ directly.")
+    # reference audio copy for offline voiceover alignment
+    ref_audio = None
+    if audio:
+        try:
+            shutil.copy2(out / audio, sheets_dir / "参考音轨_原片.wav"); ref_audio = "sheets/参考音轨_原片.wav"
+        except Exception: pass
+    # action template skeleton from templates/action-template.md
+    action_template = "sheets/动作模板.md"
+    tpl_path = _SCRIPT_DIR.parent / "templates" / "action-template.md"
+    try:
+        header = tpl_path.read_text(encoding="utf-8") if tpl_path.exists() else "# 动作模板（原视频逐镜头动作拆解）\n\n"
+    except Exception:
+        header = "# 动作模板（原视频逐镜头动作拆解）\n\n"
+    header = header.replace("{{beat_interval}}", str(beat_interval if beat_interval else "未知"))
+    header = header.replace("{{beats_per_unit}}", f"（生成单元秒数 ÷ {beat_interval}s）" if beat_interval else "未知")
+    header = re.sub(r"<!--SHEET_SECTIONS-->\s*", "", header)
+    section_lines = [header.rstrip()]
+    if pages:
+        for idx, pg in enumerate(pages, 1):
+            dur = max(pg["t_end"] - pg["t_start"], 0.0)
+            n_rows = 3
+            if beat_interval:
+                n_rows = max(3, min(20, int(round(dur / beat_interval)) + 1))
+            section_lines.append(f"\n## sheet_{idx:02d}（{pg['t_start']}–{pg['t_end']}s，共 {pg['count']} 帧）\n")
+            section_lines.append("| 时间区间 | 景别 | 机位 | 运动 | 动作节拍（①②③，每拍起承转合） | 声音 |")
+            section_lines.append("|---|---|---|---|---|---|")
+            for r in range(n_rows):
+                a = pg["t_start"] + dur * r / n_rows; b = pg["t_start"] + dur * (r + 1) / n_rows
+                section_lines.append(f"| {a:.2f}–{b:.2f}s |  |  |  |  |  |")
+            section_lines.append(f"\n> 逐页阅读 sheets/sheet_{idx:02d}.jpg，按上表填写；看不清标 `unknown`。")
+    else:
+        section_lines.append("\n> 未生成分页缩略图（Pillow 缺失或无可读帧）。请直接阅读 frames/ 单帧后填写。")
+    (sheets_dir / "动作模板.md").write_text("\n".join(section_lines) + "\n", encoding="utf-8")
+
+    file_map = {"media_file":str(media),"contact_sheet":contact,"audio":audio,"sheets_dir":"sheets","roles_dir":"roles",
+                "action_template":action_template,"cuts_list":cuts_file,"reference_audio":ref_audio,
+                "sheet_pages":[p["file"] for p in pages]}
     if transcript and transcript.get("ok"): file_map.update({"transcript_text":"transcript.txt","transcript_json":"transcript.json"})
-    bundle = {"schema_version":SCHEMA,"status":"ok" if frames else "partial","source":source,"media":media_info,"extraction":{"sampling_interval_seconds":args.interval,"max_frames":args.max_frames,"frame_count":len(frames),"audio_extracted":bool(audio),"transcription_requested":args.transcribe,"transcription":transcript},"frames":frames,"files":file_map,"notes":notes,"elapsed_seconds":round(time.time()-started,2)}
+    bundle = {"schema_version":SCHEMA,"status":"ok" if frames else "partial","source":source,"media":media_info,"extraction":{"sampling_interval_seconds":args.interval,"max_frames":args.max_frames,"frame_count":len(frames),"scene_cut_mode":bool(args.scene_cuts),"scene_cuts":len(scene_cuts) if scene_cuts else None,"cut_threshold":args.cut_threshold if args.scene_cuts else None,"avg_beats_per_second":avg_bps,"audio_extracted":bool(audio),"transcription_requested":args.transcribe,"transcription":transcript},"frames":frames,"files":file_map,"notes":notes,"elapsed_seconds":round(time.time()-started,2)}
     write_json(out / "analysis_bundle.json", bundle)
-    print(json.dumps({"status":bundle["status"],"out_dir":str(out),"frame_count":len(frames),"contact_sheet":contact,"audio_extracted":bool(audio),"bundle":str(out/"analysis_bundle.json"),"notes":notes}, ensure_ascii=False, indent=2))
+    print(json.dumps({"status":bundle["status"],"out_dir":str(out),"frame_count":len(frames),"scene_cuts":len(scene_cuts) if scene_cuts else None,"avg_beats_per_second":avg_bps,"contact_sheet":contact,"sheets_pages":len(pages),"action_template":action_template,"audio_extracted":bool(audio),"bundle":str(out/"analysis_bundle.json"),"notes":notes}, ensure_ascii=False, indent=2))
     return 0 if frames else 4
 
 if __name__ == "__main__": raise SystemExit(main())

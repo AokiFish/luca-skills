@@ -141,6 +141,30 @@ Give three short checks the user can compare against the generated result, such 
 
 Do not force all four sections for simple requests. If the user only wants the prompt, return the prompt first and keep analysis brief.
 
+## 为视频分镜复用：输出角色卡（Character Card）
+
+当一个参考图要喂给 `video-link-to-prompt` 的逐镜头模板时，除默认的图像提示词外，**必须额外产出一个角色卡**。video 模板里角色是占位符（`[主角1]` / `[主角2]` / `[反派3]`），角色卡提供"这个占位符是什么"，二者解耦——换角色不必重做分镜。
+
+### 角色卡字段
+1. **中英文自包含角色描述（Appearance card）**
+   - 只写**稳定、可辨识**的外貌：物种/体态、配色、签名特征、材质与渲染质感、表情范围。
+   - **不写动作**（动作属于 video 模板）。
+   - 写成可直接贴进 `[主角N]` 占位符的段落，分别给中文模型与英文模型一版。
+2. **禁用词 / 形体禁忌（Forbidden traits）**
+   - 该角色在生成时**最容易被脑补错**的特征，必须显式排除。列 3–5 条。
+   - 例（仅作格式示范，不要照抄具体物种）：某无翼角色禁止 `wings / claws / flying`；某长条角色禁止 `legs / arms`。
+3. **一致性风险（Consistency risks）**
+   - 参考图只覆盖单只/单一姿态，但镜头里出现**群体**或**复杂互动**时的形变风险。
+   - 参考图风格（写实 vs 卡通）与场景其他资产不统一时的**兜底句**（如 `blended into the unified animated render style`）。
+4. **表情 / 动作幅度边界（Expression & motion range）**
+   - 该角色可做的表情与肢体幅度，供 video 模板写 `[剧情]` 动作时参考，避免超出设定导致崩坏。
+
+### 配合方式
+- video 模板每个镜头写 `[主角1] 做 X 动作`，角色卡回答 `[主角1]` 长什么样、不能长成什么。
+- 若某镜头动作超出角色卡允许范围，提示用户先在 `[剧情]` 改剧情，或补一张该姿态/该数量的参考图。
+- 把角色卡的**中文描述**给中文模型、**英文描述**给英文模型；**禁用词**作为每镜头 prompt 的兜底句或负向约束。
+- 角色卡与 video 模板通过占位符对接；video 模板负责动作/机位/景别，本 skill 负责外貌/禁忌——职责不重叠。
+
 ## Platform adaptation
 
 If the user names a platform, adapt syntax and settings only when you have reliable knowledge of that platform. Keep the visual description intact; platform syntax is a wrapper, not the analysis.
