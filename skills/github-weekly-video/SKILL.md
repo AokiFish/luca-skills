@@ -1,29 +1,32 @@
 ---
 name: github-weekly-video
 description: >-
-  Generate a vertical (1080x1920) short video recapping GitHub's weekly trending
-  Top 5 open-source repos, with a cover frame, per-project intro/detail scenes,
-  generated subtitles (SRT/VTT), and optional external voiceover. Use when the
-  user wants a "GitHub 周榜 / 上周开源热榜 / 每周 GitHub 复盘 / GitHub weekly
-  trending" recap video, or wants to reproduce the GithubWeekly Remotion
-  composition in the luca-video project.
+  用 Remotion 一键生成 GitHub 周榜 Top5 竖屏解说短视频（1080x1920, 30fps），并自动接配音（先克隆声音再配音）、出封面首帧、生成字幕与标题文案。当用户说"做本周GitHub热榜视频""做一期github weekly""github周榜解说""GitHub热门项目视频"，或以 /M /W 指定配音性别时触发。M=男声、W=女声（默认女声），随时可换。
 ---
 
 # github-weekly-video
 
-## 目标
-
-一键生成竖屏（1080×1920）短视频：**GitHub 上周开源热榜 Top5**。包含封面首帧、每个项目的「大字过场 + 详解（三大看点）」、片尾汇总、以及字幕文件。配音为**可选外部步骤**（用户在豆包 / CosyVoice 等工具生成后接入）。
+竖屏（1080×1920, 30fps）短视频：**GitHub 本周/上周开源热榜 Top5**。包含封面首帧、每个项目的「大字过场 + 详解（三大看点）」、片尾汇总、字幕（SRT/VTT），以及**自动配音**（默认女声，`/M` 或"男声"换男声，随时可换）。
 
 ## 何时使用
 
-- 用户要 "GitHub 周榜 / 上周开源热榜 / 每周 GitHub 复盘" 类视频。
-- 用户要复现类似 `luca-video` 项目的 `GithubWeekly` Remotion 合成。
+- 用户要 "GitHub 周榜 / 本周开源热榜 / 每周 GitHub 复盘" 类短视频。
+- 用户要复现 `luca-video` 项目的 `GithubWeekly` Remotion 合成，或按 M/W 模式出片。
+
+## 声音选择
+
+| 指定方式 | 声音 | 参考声源 |
+| --- | --- | --- |
+| （默认） | 女声 | `{VOICE_DIR}/ai-weekly-woman.mp3` |
+| `/M` 或"男声" | 男声 | `{VOICE_DIR}/ai-weekly-man.mp3` |
+
+- `VOICE_DIR` 默认 `D:\self-media\projects\luca-video\Voiceover`，可改。
+- **先克隆再配音**，禁止 TTS 播音腔。详见 `references/voiceover.md`。
 
 ## 输入
 
 - 真实榜单数据（GitHub trending weekly Top5）：`repo / desc / lang / totalStars / weekStars`。
-- （可选）配音 mp3：用户在外部工具（如豆包克隆 ai-weekly-man / ai-weekly-woman）生成，通过 `--vo` 接入。
+- （自动）参考声源：`{VOICE_DIR}/ai-weekly-{woman|man}.mp3`。
 
 ## 输出（固定结构）
 
@@ -31,51 +34,51 @@ description: >-
 out/github-weekly-<YYYY-MM-DD>/
   github-weekly-<YYYY-MM-DD>.mp4   # 主视频 1080×1920
   首帧-<YYYY-MM-DD>.png            # 封面首帧（frame 0 即成稿）
-  subtitles.srt                    # 字幕
-  subtitles.vtt
+  subtitles.srt / subtitles.vtt    # 字幕
 ```
 
-目录名与文件名都**带日期**。
+## 工作流（一键）
 
-## 工作流（5 步）
+1. **抓数据**：`python scripts/fetch_trending.py` → `top5.json`。网络受限则**直接手动填** `data.ts`（兜底路径，必须可用）。
+2. **填数据**：把 Top5 填入 `remotion-template/GithubWeekly/data.ts` 的 `PROJECTS` 与 `WEEK_*`。每个项目补全：`desc`（中文短句）、`subtitleIntro` / `subtitleDetail`（底部字幕）、`points`（三大看点）、`tags`、`mockup`（`vocab|skill|audit|cockpit|purge` 选一）。填 `WEEK_LABEL` / `WEEK_SHORT` / `WEEK_WORD`。
+3. **放模板**：首次把 `remotion-template/GithubWeekly/` 整目录复制到目标项目 `src/GithubWeekly/`，并在 `Root.tsx` 注册 `<GithubWeekly />`（id 即 `GithubWeekly`）；之后只改 `data.ts`。
+4. **写解说词**：按 `references/voiceover.md` 的模板写 `narration.txt`（12 行，每行一个场景台词）。
+5. **克隆并生成配音**：上传参考声源 → `audio_to_audio_plus` 生成完整旁白 → 下载 `public/vo/vo-full.mp3`。（细节见 `references/voiceover.md`）
+6. **对齐 + 渲染**：
+   ```powershell
+   python scripts/build.py --project-root . --date <YYYY-MM-DD> --vo public/vo/vo-full.mp3 --narration narration.txt
+   ```
+   自动：接入配音 → `gen_cuts.py` 对齐分镜 → 渲染 mp4 → 首帧 png → 字幕。不传 `--vo` 则无声仅字幕。
+7. **标题 + 文案**：按 `references/output-copy.md` 输出标题与公众号/小红书正文。
+8. **交付**：用 `<RichMediaCard>` 交付 mp4。所有文件已在 `out/github-weekly-<date>/` 子目录，不散落。
 
-1. **抓数据（可选）**：`python scripts/fetch_trending.py` → `top5.json`。
-   若网络受限 / GitHub 改版导致失败，**直接手动填** `data.ts`，这是兜底路径，必须可用。
-2. **填数据**：把榜单填入 `remotion-template/GithubWeekly/data.ts` 的 `PROJECTS` 与 `WEEK_*` 配置。每个项目补全：
-   - `desc` 中文短句、`subtitleIntro` / `subtitleDetail`（屏幕底部字幕文案）、`points`（三大看点，逐条入场）、`tags`、`mockup`（`vocab|skill|audit|cockpit|purge` 选一，决定详情页动效）。
-   - `WEEK_LABEL`（榜单周期小字）、`WEEK_SHORT`（封面绿 pill）、`WEEK_WORD`（封面/片尾用词：上周/本周）、`VO_FILE`（配音路径，留空=无声）。
-3. **放模板**：首次把 `remotion-template/GithubWeekly/` 整目录复制到目标 Remotion 项目的 `src/GithubWeekly/`；之后只改 `data.ts`。在 `Root.tsx` 注册 `<GithubWeekly />` 合成（id 即 `GithubWeekly`）。
-4. **渲染 + 字幕**：
-   `python scripts/build.py --project-root <remotion项目> --date <YYYY-MM-DD> [--vo <配音.mp3>]`
-   自动：渲染 mp4 → 导首帧 png → 生成字幕。
-5. **接配音（可选）**：传 `--vo` 时 build 会复制 mp3 到 `public/vo/` 并改写 `data.ts` 的 `VO_FILE`；不传则无声仅字幕。
+## 关键脚本
 
-## 关键参数
-
-- `--date`：决定输出目录名 / 文件名 / 首帧名。默认今天。
-- `--vo`：配音文件（女声 / 男声由用户在外部工具选择，skill 只负责接入）。
-- `CUTS` / `GITHUB_WEEKLY_DURATION`（`GithubWeekly.tsx`）：分镜帧数。有配音时按语音时长重算；无配音时用内置示例值（≈149s @30fps）即可直接渲染。
+- `scripts/fetch_trending.py` — 抓 Top5 → `top5.json`
+- `scripts/gen_cuts.py` — silencedetect 停顿 + 字数比例 → 重写 CUTS/DURATION/VO_FILE
+- `scripts/gen_subtitles.py` — data.ts + GithubWeekly.tsx → SRT/VTT（不依赖配音）
+- `scripts/build.py` — 编排：配音 → 对齐 → 渲染 → 首帧 → 字幕
 
 ## 依赖
 
 - Node + Remotion（目标项目已初始化，含 `node_modules/.bin/remotion`）。
-- Python 3：`gen_subtitles.py` 仅用标准库；`fetch_trending.py` 需 `requests`（`pip install requests`）。
+- Python 3：`gen_cuts.py` / `gen_subtitles.py` 仅标准库；`fetch_trending.py` 需 `requests`。
+- ffmpeg（`gen_cuts.py` 做 silencedetect）。
 
 ## 踩坑
 
 - **渲染前 `NODE_OPTIONS=""`**：沙箱注入的 safe-delete 会把 remotion 清理 Chrome 下载锁的 `fs.rm` 改成"移回收站"导致死循环。`build.py` 已内置清空该变量。
-- **配音无法自动克隆**：豆包桌面端无程序化接口（内部 IPC 不走 HTTP），本地 `AUDIO_MODEL` 是降噪/声纹模型而非 TTS 合成模型——**不能自动驱动克隆**。配音必须由用户在外部工具生成后通过 `--vo` 接入。
+- **配音必须整段连续生成**：拆成多段会在句间插静音，听起来一卡一卡。若 `audio_to_audio_plus` 输出被截断（没说完），重新生成更长的版本。
 - **字幕不依赖配音**：按分镜（CUTS）固定时段生成，无论有无配音都能产出。
 - **首帧**：封面用 `instant` 淡入（frame 0 即满亮度），`remotion still --frame=0` 直接出成稿封面。
-- **沙箱 pip 走代理镜像**，部分包缺失（如 `TTS`/`XTTS` 无 Linux wheel、`cosyvoice` 编译失败）；如需本地克隆，另行评估 F5-TTS / CosyVoice 方案，与本 skill 解耦。
 
 ## 文件地图
 
 - `remotion-template/GithubWeekly/`：Remotion 模板
   - `data.ts`：填数据（PROJECTS + WEEK_* + VO_FILE）
-  - `GithubWeekly.tsx`：分镜 CUTS / 总时长 / 可选 Audio
+  - `GithubWeekly.tsx`：分镜 CUTS / 总时长 / Audio（VO_FILE 非空时播放）
   - `scenes.tsx`：封面 / 过场 / 详解 / 片尾场景
   - `components/`：通用 UI（Chrome 边框、Mockups 动效）
-- `scripts/fetch_trending.py`：抓 Top5 → top5.json
-- `scripts/gen_subtitles.py`：data.ts + GithubWeekly.tsx → SRT/VTT
-- `scripts/build.py`：编排渲染 + 首帧 + 字幕
+- `references/voiceover.md`：声音选择 + 克隆流程 + 解说词模板
+- `references/output-copy.md`：标题与配套文案模板
+- `scripts/`：抓数 / 对齐 / 字幕 / 编排
