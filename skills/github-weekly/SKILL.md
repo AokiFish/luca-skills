@@ -1,10 +1,10 @@
 ---
-name: github-weekly-video
+name: github-weekly
 description: >-
-  用 Remotion 一键生成 GitHub 周榜 Top5 竖屏解说短视频（1080x1920, 30fps），并自动接配音（先克隆声音再配音）、出封面首帧、生成字幕与标题文案。当用户说"做本周GitHub热榜视频""做一期github weekly""github周榜解说""GitHub热门项目视频"，或以 /M /W 指定配音性别时触发。M=男声、W=女声（默认女声），随时可换。
+  用 Remotion 一键生成 GitHub 周榜 Top5 竖屏解说短视频（1080x1920, 30fps），并自动接配音（先克隆声音再配音）、出封面首帧、生成字幕与标题文案。当用户说"做本周GitHub热榜视频""做一期github weekly""github周榜解说""GitHub热门项目视频"，或以 /M /W 指定配音性别时触发。M=男声、W=女声（默认女声），随时可换。输入框以 /github-weekly 调用。
 ---
 
-# github-weekly-video
+# github-weekly
 
 竖屏（1080×1920, 30fps）短视频：**GitHub 本周/上周开源热榜 Top5**。包含封面首帧、每个项目的「大字过场 + 详解（三大看点）」、片尾汇总、字幕（SRT/VTT），以及**自动配音**（默认女声，`/M` 或"男声"换男声，随时可换）。
 
