@@ -35,6 +35,7 @@ out/github-weekly-<YYYY-MM-DD>/
   github-weekly-<YYYY-MM-DD>.mp4   # 主视频 1080×1920
   首帧-<YYYY-MM-DD>.png            # 封面首帧（frame 0 即成稿）
   subtitles.srt / subtitles.vtt    # 字幕
+  github-weekly-<YYYY-MM-DD>.md    # 标题 + 说明文案（发短视频用）
 ```
 
 ## 工作流（一键）
@@ -49,7 +50,7 @@ out/github-weekly-<YYYY-MM-DD>/
    python scripts/build.py --project-root . --date <YYYY-MM-DD> --vo public/vo/vo-full.mp3 --narration narration.txt
    ```
    自动：接入配音 → `gen_cuts.py` 对齐分镜 → 渲染 mp4 → 首帧 png → 字幕。不传 `--vo` 则无声仅字幕。
-7. **标题 + 文案**：按 `references/output-copy.md` 输出标题与公众号/小红书正文。
+7. **标题 + 说明**：`python scripts/gen_copy.py --data src/GithubWeekly/data.ts --outdir out/github-weekly-<date> --date <date>` 自动从 data.ts 生成 `github-weekly-<date>.md`（标题 + 1～5 项目说明 + 合计星数 + 英文推广段）。脚本产物是草稿，按 `references/output-copy.md` 的模板润色标题亮点与说明措辞。
 8. **交付**：用 `<RichMediaCard>` 交付 mp4。所有文件已在 `out/github-weekly-<date>/` 子目录，不散落。
 
 ## 关键脚本
@@ -57,6 +58,7 @@ out/github-weekly-<YYYY-MM-DD>/
 - `scripts/fetch_trending.py` — 抓 Top5 → `top5.json`
 - `scripts/gen_cuts.py` — silencedetect 停顿 + 字数比例 → 重写 CUTS/DURATION/VO_FILE
 - `scripts/gen_subtitles.py` — data.ts + GithubWeekly.tsx → SRT/VTT（不依赖配音）
+- `scripts/gen_copy.py` — data.ts → 标题+说明文案 md
 - `scripts/build.py` — 编排：配音 → 对齐 → 渲染 → 首帧 → 字幕
 
 ## 依赖
