@@ -69,7 +69,7 @@ def build_lines(projects):
         intro = "，".join(p["points"][:2]) if p["points"] else ""
         body = f"{p['desc']}，{intro}" if intro else p["desc"]
         lines.append(
-            f"{p['rank']}｜{p['name']}：{body}。链接：[https://{p['url']}](https://{p['url']})"
+            f"{p['rank']}. **{p['name']}**：{body}。链接：[https://{p['url']}](https://{p['url']})"
         )
     return lines
 
@@ -113,7 +113,7 @@ def main():
     md = [
         f"# {build_title(week_short, projects)}",
         "",
-        "\n".join(build_lines(projects)),
+        "\n\n".join(build_lines(projects)),
         "",
         build_tail(week_short, projects),
         "",
