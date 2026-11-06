@@ -13,6 +13,9 @@
 | **video-mix** | 把一个目录下的多段短视频按文件名顺序拼接成完整长视频，按画面情绪重新生成配乐；输出 H.264+AAC faststart，可直接上传 X/抖音/微信。 | [`skills/video-mix`](skills/video-mix) |
 | **video-music-extract** | 从 B 站 / YouTube 等任意视频链接抽取音乐 mp3，用一个"意图"参数控制是否保留人声：pure（默认，自动去人声）、all（保留原唱+配音）、chorus/C（保留合唱/衬底"啊"人声）。 | [`skills/video-music-extract`](skills/video-music-extract) |
 | **music-instrument-analysis** | 上传或链接一段音乐，用 YAMNet(ONNX) 客观乐器概率 + 频谱特征 + 音乐学知识识别乐器组成，讲解每种乐器的适用场景与最佳搭配，并支持时间轴分段配器表。 | [`skills/music-instrument-analysis`](skills/music-instrument-analysis) |
+| **video-publish-pack** | 一次制作、多平台适配的视频发布物料生成器：为同一视频按抖音、小红书、B站、快手、视频号、YouTube 等 16 个平台的标题字数、描述结构、标签规则生成内容包（`xhsTitle`、`douyinTitle`、`bilibiliTitle` 等平台专用字段），附内容包校验脚本与 SRT/VTT 字幕规范，作为 social-auto-upload 的文案适配层。 | [`skills/video-publish-pack`](skills/video-publish-pack) |
+| **sau-publish** | 发布执行层：用 social-auto-upload 的 `sau` CLI 把视频/图文真正发到抖音、小红书、B站、快手、视频号、YouTube 等平台；含 Windows 安装踩坑、扫码登录、短信验证码处理、内容包转命令脚本与发布结果核验脚本。 | [`skills/sau-publish`](skills/sau-publish) |
+| **task-conductor** | 多 Skill 任务的编排总指挥：拆任务图、选 Skill、定依赖与输入输出契约、设验收标准并汇总；自己不上场执行，只做编排与只读验收。 | [`skills/task-conductor`](skills/task-conductor) |
 
 每个 Skill 目录均含 `SKILL.md`（核心路由 + 约束）、`scripts/`（本地可执行脚本），多数含 `assets/`、`requirements.txt` 与 `README.md`；部分含 `references/`（按需加载的详细规则）与 `templates/`（产出模板）。
 

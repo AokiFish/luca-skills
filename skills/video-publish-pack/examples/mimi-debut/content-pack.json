@@ -1,0 +1,92 @@
+{
+  "schema": "video-publish-pack/v1",
+  "videoFile": "videos/mimi-debut.mp4",
+  "durationSec": 15,
+  "aspectRatio": "16:9",
+  "base": {
+    "subject": "Mimi",
+    "story": "小猫 Mimi 的频道首支视频，认真准备自我介绍，却接连翻车：尾巴扫走提词卡、碰倒水杯，水滴打湿粉色蝴蝶结和金色铃铛，最后破功卖萌求订阅。",
+    "keyPoints": [
+      "首支视频就社死",
+      "一本正经与慌张的反差",
+      "水打湿铃铛和蝴蝶结",
+      "破功改口求订阅"
+    ],
+    "tone": "cute-comedy",
+    "language": "zh"
+  },
+  "content": {
+    "douyinTitle": "第一次拍视频自我介绍，结果全程翻车😹",
+    "douyinDesc": "本来想认真介绍自己，结果尾巴扫飞提词卡、还打翻了水杯…你们第一次拍视频也这样吗？",
+    "douyinTags": ["萌宠", "猫咪日常", "翻车现场", "新手up主", "英短"],
+
+    "xhsTitle": "第一次自我介绍就社死😭",
+    "xhsDesc": "谁懂啊！给频道录第一条自我介绍，本来准备得可认真了…\n结果尾巴一扫，把提词卡直接扫飞了😭\n然后爪子一挥，杯子翻倒，水全溅到胸前的蝴蝶结和铃铛上…\n最后干脆摆烂：自我介绍失败，但欢迎订阅！\n姐妹们第一次录视频也这么灾难吗？",
+    "xhsTags": ["萌宠日常", "猫咪", "新手博主", "翻车现场", "英短", "治愈系"],
+
+    "bilibiliTitle": "【首播翻车】小猫一本正经自我介绍，结果全程社死",
+    "bilibiliDesc": "Mimi 的频道首支视频。本来想认真做个自我介绍，结果尾巴扫走提词卡、碰倒水杯，蝴蝶结和铃铛全湿了，最后破功卖萌求订阅。",
+    "bilibiliTags": ["萌宠", "猫咪", "翻车", "动物", "日常", "搞笑", "首播"],
+    "bilibiliTid": 249,
+
+    "kuaishouTitle": "第一次拍视频就翻车了",
+    "kuaishouDesc": "自我介绍没说完，水杯先翻了，老铁们别笑",
+    "kuaishouTags": ["萌宠", "猫咪"],
+
+    "tencentTitle": "第一次录自我介绍，全程翻车",
+    "tencentDesc": "本来想认真介绍自己，结果提词卡飞了、水杯倒了…有点尴尬，但还挺好笑的。你们第一次录视频顺利吗？",
+    "tencentTags": ["萌宠", "猫咪日常", "翻车"],
+
+    "baijiahaoTitle": "小猫首次自我介绍翻车实录",
+    "baijiahaoDesc": "首支视频自我介绍接连出错：提词卡被扫走、水杯打翻、铃铛打湿，最后破功求订阅。",
+    "baijiahaoTags": ["萌宠", "猫咪", "搞笑"],
+
+    "weiboTitle": "第一次自我介绍就社死了😭",
+    "weiboDesc": "给频道录首支自我介绍，尾巴扫飞提词卡，还打翻水杯… #萌宠# #猫咪#",
+    "weiboTags": ["萌宠", "猫咪", "翻车现场"],
+
+    "hupuTitle": "第一次拍自我介绍，翻车翻到姥姥家",
+    "hupuDesc": "JRs 给这波操作打几分？提词卡飞了，水杯翻了，铃铛湿了。",
+    "hupuTags": ["萌宠", "猫咪", "翻车"],
+
+    "zhihuTitle": "第一次录视频自我介绍，能翻车到什么程度？",
+    "zhihuDesc": "本视频记录一只小猫的频道首播自我介绍：提词卡被尾巴扫走、水杯打翻、蝴蝶结和铃铛被打湿，最后放弃正经介绍改为卖萌求订阅。适合想了解新手博主首播翻车真实样本的观众。",
+    "zhihuTags": ["猫", "宠物", "视频创作", "新手博主"],
+
+    "youtubeTitle": "My FIRST introduction… It went horribly wrong 😹 | Mimi",
+    "youtubeDesc": "Hi everyone! This is Mimi's very first video on this channel 😺\nI tried my best to make a proper self-introduction… but everything went wrong.\nI lost my script, knocked over a cup, and got my bow and bell all wet!\nHope this silly little awkward debut can make you smile.\nIf you like my clumsy moments, please hit subscribe and stay tuned for more fun cat content!",
+    "youtubeTags": ["MimiTheCat", "CuteCat", "FunnyCat", "CatShorts", "PetIntro", "CatDebut"],
+
+    "tiktokCaption": "My first intro… and I ruined it 😹 #cat #funnycat #petsoftiktok",
+    "tiktokTags": ["cat", "funnycat", "petsoftiktok", "cute"],
+
+    "instagramCaption": "First intro, total chaos 😹 #cat #cute #funny",
+    "instagramTags": ["cat", "cute", "funny"],
+
+    "facebookTitle": "Mimi's first introduction went horribly wrong 😹",
+    "facebookDesc": "She tried to introduce herself… and spilled water on her bell. Cats, right?",
+
+    "alipayTitle": "小猫首次自我介绍翻车",
+    "alipayDesc": "首支视频自我介绍连续出错，最后破功求订阅。",
+    "alipayTags": ["萌宠", "猫咪"],
+
+    "dayuTitle": "小猫首次自我介绍翻车实录，全程高能",
+    "dayuDesc": "首支视频自我介绍接连出错：提词卡被扫走、水杯打翻、铃铛打湿，最后破功求订阅。",
+    "dayuTags": ["萌宠", "猫咪", "搞笑"]
+  },
+  "subtitles": {
+    "zh": { "srt": "subtitles.zh.srt", "vtt": "subtitles.zh.vtt" },
+    "en": { "srt": "subtitles.en.srt", "vtt": "subtitles.en.vtt" }
+  },
+  "subtitleByPlatform": {
+    "douyin": "zh", "xhs": "zh", "bilibili": "zh", "kuaishou": "zh", "tencent": "zh",
+    "baijiahao": "zh", "weibo": "zh", "hupu": "zh", "zhihu": "zh",
+    "alipay": "zh", "dayu": "zh",
+    "youtube": "en", "tiktok": "en", "instagram": "en", "facebook": "en"
+  },
+  "notes": [
+    "雪球为投资社区，本萌宠内容不适配，故未生成 xueqiuTitle。",
+    "B站需选择分区，示例使用 tid=249（生活）。",
+    "知乎视频需在 CLI 指定 --category 与 --video-mark。"
+  ]
+}
