@@ -74,23 +74,24 @@ description: 用 social-auto-upload 的 `sau` CLI 把视频/图文真正发布�
 
 ## 内容包字段映射
 
-| 内容包前缀 | CLI 子命令 | 备注 |
-|---|---|---|
-| `douyin` | `sau douyin upload-video` | 视频 `--desc`；图文 `upload-note --note` |
-| `xhs` | `sau xiaohongshu upload-video` | 图片笔记用 `upload-note` |
-| `bilibili` | `sau bilibili upload-video` | 必带 `--tid`（内容包 `bilibiliTid`） |
-| `kuaishou` | `sau kuaishou upload-video` | — |
-| `tencent` | `sau tencent upload-video` | 支持 `--short-title`、合集 |
-| `baijiahao` | `sau baijiahao upload-video` | — |
-| `weibo` | `sau weibo upload-video` | 标题 ≤30 字 |
-| `hupu` | `sau hupu upload-video` | 标题 4–40 字 |
-| `zhihu` | `sau zhihu upload-video` | 需 `--category` 与 `--video-mark` |
-| `youtube` | `sau youtube upload-video` | 需 `--visibility` |
-| `alipay` | `sau alipay upload-video` | — |
-| `dayu` | `sau dayu upload-video` | — |
-| `tiktok` / `instagram` / `facebook` | 无统一 CLI | 如实告知用户需走浏览器版 |
+| 内容包前缀 | CLI 子命令 | 封面参数 | 备注 |
+|---|---|---|---|
+| `douyin` | `sau douyin upload-video` | `--thumbnail-landscape` 横版 + `--thumbnail-portrait` 竖版 | 视频 `--desc`；图文 `upload-note --note` |
+| `xhs` | `sau xiaohongshu upload-video` | `--thumbnail` 3:4 竖版 | 图片笔记用 `upload-note` |
+| `bilibili` | `sau bilibili upload-video` | `--thumbnail` 16:9 横版 | 必带 `--tid`（内容包 `bilibiliTid`） |
+| `kuaishou` | `sau kuaishou upload-video` | 无（系统自动截取） | — |
+| `tencent` | `sau tencent upload-video` | `--thumbnail-landscape` 横版 + `--thumbnail-portrait` 竖版 | 支持 `--short-title`、合集 |
+| `baijiahao` | `sau baijiahao upload-video` | `--thumbnail` 16:9 横版（**必填**） | 不提供封面会报错 |
+| `weibo` | `sau weibo upload-video` | `--thumbnail` 16:9 横版（**必填**） | 标题 ≤30 字，封面 <5MB |
+| `hupu` | `sau hupu upload-video` | `--thumbnail` 可选 | 标题 4–40 字 |
+| `zhihu` | `sau zhihu upload-video` | `--thumbnail` 16:9 横版 | 需 `--category` 与 `--video-mark` |
+| `youtube` | `sau youtube upload-video` | `--thumbnail` 16:9 横版 | 需 `--visibility` |
+| `alipay` | `sau alipay upload-video` | `--thumbnail` 可选 | — |
+| `dayu` | `sau dayu upload-video` | 无 | — |
+| `tiktok` / `instagram` / `facebook` | 无统一 CLI | 浏览器版手动上传封面 | 如实告知用户需走浏览器版 |
 
 字段命名：`<prefix>Title` / `<prefix>Desc` / `<prefix>Tags`；TikTok、Instagram 用 `<prefix>Caption`。
+封面文件按 video-publish-pack 的 `covers` 字段路径传入。
 
 ## 硬约束
 
