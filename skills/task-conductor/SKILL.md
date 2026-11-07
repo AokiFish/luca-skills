@@ -47,11 +47,14 @@ description: 多 Skill 任务的编排总指挥——把用户的一个跨步骤
 | # | 节点 | Skill | 依赖 | 输入 | 输出 | 验收 |
 |---|---|---|---|---|---|---|
 | 1 | 生成多平台文案 | video-publish-pack | - | 视频+剧情 | content-pack.json | validate_pack.py 0 error |
-| 2 | 发布抖音 | sau-publish | 1 | content-pack.json | 抖音作品 | 后台状态=已发布 |
+| 2 | 制作封面 | cover-studio（或 cat-cover-studio） | 1 | 成片、主标题 | cover.png | 标题不挡脸、比例正确（横版16:9/竖版3:4） |
+| 3 | 发布抖音 | sau-publish | 1,2 | content-pack.json + cover.png | 抖音作品 | 后台状态=已发布、封面已设置 |
 
 并行组：<哪些节点可同时执行>
 前置与风险：<需用户提供/确认的事项>
 ```
+
+**封面节点硬规则**：凡是发布视频的任务图，必须在"发布"节点之前插入一个封面节点；横版视频用 16:9（1920×1080），竖版用 3:4（1536×2048）；猫咪IP/萌宠内容走 `cat-cover-studio`，其他走 `cover-studio`。
 
 ## 失败与回退
 

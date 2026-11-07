@@ -105,7 +105,19 @@ social-auto-upload CLI 逐平台发布（title + desc + tags + 对应语言字�
 2. **定平台清单**：确认目标平台；默认全平台，用户点名则缩减。
 3. **逐平台改写**：按 `references/platform-rules.md` 的长度限制 + `references/platform-playbooks.md` 的平台语气/标签文化，逐平台写标题、描述、标签。**先满足硬限制，再优化表达**。
 4. **写内容包并校验**：输出 `content-pack.json`，运行 `python scripts/validate_pack.py content-pack.json` 校验字数/标签数/字幕语言映射；不合规字段重写，不硬截断。
-5. **交付**：`content-pack.json` + 人类可读的 `titles-by-platform.md`（标题/描述/标签/字幕语言对照表）；需要字幕时附中英两套 SRT/VTT（`subtitles.zh.*`、`subtitles.en.*`），并在 `subtitleByPlatform` 中声明各平台用哪套。
+5. **交付（必须逐项打勾，少一个都不算完）**：
+
+   交付前必须用以下清单逐项核对，**每一个文件都必须真实存在于磁盘上**，不允许只在 content-pack.json 里写路径而不生成文件：
+
+   - [ ] `content-pack.json` — 运行 `python scripts/validate_pack.py`，结果 **0 error**
+   - [ ] `titles-by-platform.md` — 人类可读的全平台文案对照表
+   - [ ] **视频画面已烧录字幕**（不是外挂 SRT 文件，是 ffmpeg 烧到 mp4 画面里的中文字幕）
+   - [ ] `subtitles.zh.srt` — 中文字幕 SRT（时间轴对齐旁白）
+   - [ ] `subtitles.zh.vtt` — 中文字幕 VTT（YouTube 用）
+   - [ ] `subtitles.en.srt` — 英文字幕 SRT（与中文字幕同时间轴）
+   - [ ] `subtitles.en.vtt` — 英文字幕 VTT（与中文字幕同时间轴）
+
+   **字幕不是可选项**：只要视频有旁白，就必须：① 用 ffmpeg 把中文字幕烧录到视频画面里（`ffmpeg -i input.mp4 -vf "subtitles=subtitles.zh.srt:force_style='FontName=Microsoft YaHei,FontSize=22,PrimaryColour=&HFFFFFF,OutlineColour=&H000000,BorderStyle=1,Outline=2,Alignment=2,MarginV=40'" -c:a copy output.mp4`）；② 同时生成中英双语外挂 SRT/VTT 文件。两套字幕时间轴逐条一致，只换文本。
 
 ## 与 social-auto-upload 字段映射
 
@@ -137,6 +149,8 @@ social-auto-upload CLI 逐平台发布（title + desc + tags + 对应语言字�
 5. **不编造**：所有文案只基于视频真实内容；不承诺视频里没有的信息。
 6. **待核实平台**（支付宝生活号等）：交付时注明"以发布页实际限制为准"。
 7. **字幕双语分层**：中文平台（抖音/小红书/B站/快手/视频号/百家号/微博/虎扑/知乎/支付宝/大鱼号/雪球）用 `zh` 字幕；海外平台（YouTube/TikTok/Instagram/Facebook）用 `en` 字幕。两套时间轴逐条对齐，只换文本，不得各自漂移。
+8. **文案与视频同步**：视频叙事/旁白改了之后，content-pack.json 里的标题、描述、标签必须同步更新，不能视频是新故事、文案还是旧版本。生成文案前先重读视频旁白或分镜脚本。
+9. **GitHub 标签必带**：做 GitHub 开源项目相关视频时，每个平台的标签列表里必须包含 `GitHub`，描述里必须提到仓库地址。
 
 ## 资源导航
 

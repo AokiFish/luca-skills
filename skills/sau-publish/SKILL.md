@@ -19,7 +19,45 @@ description: 用 social-auto-upload 的 `sau` CLI 把视频/图文真正发布�
 
 任一项缺失 → 读 `references/windows-setup.md` 按步骤补齐，不要临场猜命令。
 
-## 工作流（检查 → 登录 → 取字段 → 发布 → 核验）
+## 完整工作流规范（视频→文案→发布）
+
+从视频制作到发布，每个环节的强制规则。任一环节跳过即视为未完成。
+
+### 环节一：视频渲染（Remotion）
+
+| 规则 | 怎么做 | 为什么 |
+|---|---|---|
+| 复用设计系统 | import `../OmnigetTutorial/ui.tsx` 的 Stage/Window/SectionTitle/Pill/CaptionBar，不另建工程、不另写色块 | 保证和 OmnigetTutorial 风格一致 |
+| 每场景 CaptionBar | 9 个场景每个都加 `<CaptionBar text={NARRATION.xxx} />`，text 传完整旁白 | 字幕在 Remotion 里渲染，不 ffmpeg 事后烧 |
+| CUTS 用 ASR 实测 | 渲染前用 `mediakit-cli video asr-subtitles` 转写旁白音频，拿到逐句时间戳，按真实时间填 CUTS 帧位置（30fps） | 不预估，否则字幕和画面对不上 |
+| 抽帧验证 | 渲染后抽 2-3 帧验证 CaptionBar 可见、时间轴对齐、没有双层叠加 | 不验证不说做完 |
+
+### 环节二：文案与字幕（video-publish-pack）
+
+| 规则 | 怎么做 |
+|---|---|
+| 内容包 | 生成 `content-pack.json`，运行 `validate_pack.py` 校验 0 error |
+| 对照表 | 生成 `titles-by-platform.md` 人类可读对照表 |
+| 双语字幕 | 生成 `subtitles.zh.srt/.vtt` 和 `subtitles.en.srt/.vtt`，时间轴按 ASR 实测结果 |
+| GitHub 标签 | 每个平台标签列表必须带 `GitHub`，描述必须提仓库地址 |
+| 文案与视频同步 | 视频叙事改了，文案必须同步更新 |
+
+### 环节三：发布执行（本 skill）
+
+| 规则 | 怎么做 |
+|---|---|
+| 检查登录态 | `sau <platform> check` 返回 valid 才继续 |
+| 发布前复述 | 复述账号、视频路径、标题、描述、标签，用户确认才发 |
+| 后台核验 | 发布后打开作品页确认状态"已发布"，日志里的"发布成功"不算证据 |
+| 不盲目重传 | 状态不明时先核验后台，禁止重复发布 |
+
+### 三条铁律（贯穿全流程）
+
+1. **不预估时间轴**：CUTS、字幕时间戳必须 ASR 实测，不凭感觉算
+2. **不瞎编内容**：字幕、文案、旁白必须和视频实际一致，不自己发挥
+3. **不验证不交付**：抽帧验证视频、校验文案、确认后台状态，做完了才说做完
+
+### 发布执行步骤（环节三展开）
 
 1. **检查登录态**
    `sau <platform> check --account <name>`，返回 `valid` 才继续；`invalid` 走第 2 步。

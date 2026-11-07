@@ -17,6 +17,8 @@
 | `music-instrument-analysis` | 音乐乐器识别与配器分析 | 音频 | 分析报告 |
 | `image-reference-to-prompt` | 参考图反推提示词 | 图片 | 提示词 |
 | `github-weekly` | GitHub 周榜解说短视频全流程 | 周榜数据 | 成片、封面、字幕 |
+| `cover-studio` | 12套小红书/短视频封面模板 → 竖版或横版封面（主角：丸子头女生） | 标题文案、模板号、可选本人照片 | `cover.png` |
+| `cat-cover-studio` | 同上，主角固定为乳色英短猫（粉蝴蝶结+金铃铛） | 标题文案、模板号、猫咪姿态偏好 | `cover-cat.png` |
 | `byted-mediakit-*` | 专业媒体处理（转码、抽帧、ASR、字幕、擦除、增强） | 媒体文件 | 处理结果 |
 
 ## 二、文案与发布链路
@@ -47,6 +49,7 @@
 | 做视频 / 文生视频 / 图生视频 / 广告片 | `doubao-creative-video` |
 | 视频转码 / 抽帧 / 识别字幕 / 去水印 / 擦字幕 | `byted-mediakit-*` |
 | 起标题 / 写描述 / 配标签 / 多平台文案 / 字幕 | `video-publish-pack` |
+| 做封面 / 视频封面 / 小红书封面 / thumbnail / 换标题做封面 | `cover-studio`（普通内容）或 `cat-cover-studio`（猫咪IP/萌宠） |
 | 发布 / 上传 / 登录 / 发抖音 / 发 B 站 | `sau-publish` |
 | 多个步骤按流程走 | `task-conductor`（本 Skill） |
 | 表格 / Excel / CSV | `sheet` |
