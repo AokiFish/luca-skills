@@ -17,6 +17,38 @@
 | **sau-publish** | 发布执行层：用 social-auto-upload 的 `sau` CLI 把视频/图文真正发到抖音、小红书、B站、快手、视频号、YouTube 等平台；含 Windows 安装踩坑、扫码登录、短信验证码处理、内容包转命令脚本与发布结果核验脚本。 | [`skills/sau-publish`](skills/sau-publish) |
 | **task-conductor** | 多 Skill 任务的编排总指挥：拆任务图、选 Skill、定依赖与输入输出契约、设验收标准并汇总；自己不上场执行，只做编排与只读验收。 | [`skills/task-conductor`](skills/task-conductor) |
 | **deep-article-production** | 热点人物深度文章生产流程：先过热点门槛（14 天内原发病毒内容 + 本人第一方实用方法），再出核查底稿，写方法优先母版，经独立 Checker 验收后按已验证路线发表，24 小时/7 天回收转发数据。无最近热点不写，哪怕是卡帕西。 | [`skills/deep-article-production`](skills/deep-article-production) |
+| **agentrun-setup** | 安装 Parcha AgentRun 平台并跑通第一个 agent：学习闭环（每轮提议 notes/skills/workflows，经检查+评分后 commit，下轮接着用）、持久执行、审批与花销上限、统一控制台；面向 Claude Code / Codex / OpenCode / pi。 | [`skills/agentrun-setup`](skills/agentrun-setup) |
+| **smooth-transitions** | 切换平滑规则：轮播、标签页、滚动行、灯箱等一切视图切换必须带过渡动画，禁止瞬跳；小切换 90–200ms，整窗滑动 200–300ms，ease-out。 | [`skills/smooth-transitions`](skills/smooth-transitions) |
+| **three-prohibitions** | 三禁：禁自作聪明、禁图省事、禁重要更改不交代。 | [`skills/three-prohibitions`](skills/three-prohibitions) |
+| **delegation-contract** | 传达铁律：brief 必须带完整规格原文 + 独立验收。 | [`skills/delegation-contract`](skills/delegation-contract) |
+| **effect-improvement** | 效果改进法：先解析再选策略，maker ≠ checker，对照真高质量素材迭代。 | [`skills/effect-improvement`](skills/effect-improvement) |
+| **skill-sedimentation** | 经验第一次做对/犯错就写 skill；先修 bug 再写 skill。 | [`skills/skill-sedimentation`](skills/skill-sedimentation) |
+| **troubleshooting-playbook** | 故障排查：端到端实测验收、先查日志、架构怀疑、官方模板优先。 | [`skills/troubleshooting-playbook`](skills/troubleshooting-playbook) |
+| **login-discipline** | 登录负担纪律：最小化身份步骤、单会话、已登录 Google 点选、不存 Google 密码。 | [`skills/login-discipline`](skills/login-discipline) |
+| **browser-session-discipline** | 标签页纪律：用完即关、同站最多 2 个、只读核查优先 curl。 | [`skills/browser-session-discipline`](skills/browser-session-discipline) |
+| **x-post-reading** | X 推文优先 fxtwitter 读，必须带 Accept 头。 | [`skills/x-post-reading`](skills/x-post-reading) |
+| **orchestration** | 指挥架构：单指挥官 + 窄编制 + maker ≠ checker + 涌现式分工。 | [`skills/orchestration`](skills/orchestration) |
+| **space-network-wiring** | 空间节点连线：空间独立、咪咪做衔接、P1–P3 已落地。 | [`skills/space-network-wiring`](skills/space-network-wiring) |
+| **identity-pose-separation** | 身份姿势彻底分开：姿势库只用统一白模、人物库单存身份。 | [`skills/identity-pose-separation`](skills/identity-pose-separation) |
+| **unified-data-standard** | 统一数据标准 v1：7 Studio ID 前缀 + 共享素材索引 + 字段级分离。 | [`skills/unified-data-standard`](skills/unified-data-standard) |
+| **mimi-visual-system** | 咪咪视觉系统 v1.1：双极绿、封面主角优先、Rule F。 | [`skills/mimi-visual-system`](skills/mimi-visual-system) |
+| **wechat-publish-safety** | 公众号发布安全：文档导入路线、编辑器空保存 hazard、作者栏咪咪、群发 1 次上限。 | [`skills/wechat-publish-safety`](skills/wechat-publish-safety) |
+| **x-operations** | X 运营 @mimiAIStudio：目标、回复铁律、引用铁律、三层筛、巡查制。 | [`skills/x-operations`](skills/x-operations) |
+| **x-dashboard** | X AI 监控看板：6 栏 Top 5、收录门槛、7 天时效、晨晚两更。 | [`skills/x-dashboard`](skills/x-dashboard) |
+| **en-prompt-first** | 生成入口中文先译英文再出图/视频。 | [`skills/en-prompt-first`](skills/en-prompt-first) |
+| **kaggle-gpu** | Kaggle：模型挂数据集、Aoo 号、IC-Light 跑通、OOM 教训。 | [`skills/kaggle-gpu`](skills/kaggle-gpu) |
+| **doubao-generation** | 豆包生成：文生/图生视频、图生图同身份换装、403 长期限制。 | [`skills/doubao-generation`](skills/doubao-generation) |
+| **free-quota** | 免费额度雷达：只认四源、存疑标未核实、过期下架、资源分配规则。 | [`skills/free-quota`](skills/free-quota) |
+| **no-fabrication** | 不编造：第一方证据或 nothing，数字/账号/日期须核实。 | [`skills/no-fabrication`](skills/no-fabrication) |
+| **space-engineering** | 空间工程：Worker 不支持、分片、ir_version、深度只需一个模型、需存数据建全栈。 | [`skills/space-engineering`](skills/space-engineering) |
+| **platform-topic-strategy** | 平台选题策略总纲：逐平台独立判定、禁一题打天下。 | [`skills/platform-topic-strategy`](skills/platform-topic-strategy) |
+| **tiktok-viral-research** | TikTok 爆款调研：先调研后制作、数据给中文 + 排序、方向由数据定。 | [`skills/tiktok-viral-research`](skills/tiktok-viral-research) |
+| **space-backup-sync** | Muse 空间 GitHub 备份：快照推送流程、凭证永不入库。 | [`skills/space-backup-sync`](skills/space-backup-sync) |
+| **adaptation-checks** | 适配验收：标题字数脚本实测、hedge 须带归属动词。 | [`skills/adaptation-checks`](skills/adaptation-checks) |
+| **secret-handling** | 密钥铁律：不用公开默认 UUID、只存 600 权限文件、不入库。 | [`skills/secret-handling`](skills/secret-handling) |
+| **audit-read-only** | 分类审查只读：巡检只列疑似、不自动改数据。 | [`skills/audit-read-only`](skills/audit-read-only) |
+| **video-production-workflow** | 视频制作工作流：museai-video、分镜表先行、每 10 秒一个任务。 | [`skills/video-production-workflow`](skills/video-production-workflow) |
+| **report-results-only** | 汇报只说结果：分类统计、不堆文字、补光文字不超 2 行。 | [`skills/report-results-only`](skills/report-results-only) |
 
 每个 Skill 目录均含 `SKILL.md`（核心路由 + 约束）、`scripts/`（本地可执行脚本），多数含 `assets/`、`requirements.txt` 与 `README.md`；部分含 `references/`（按需加载的详细规则）与 `templates/`（产出模板）。
 
