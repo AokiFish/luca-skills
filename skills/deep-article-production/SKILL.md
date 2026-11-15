@@ -75,7 +75,7 @@ Write the Chinese master first (`master-zh-v2.md`), then adapt. The Lauren maste
 - Stop at Gate 0 when there is no recent viral artifact, no first-party method, or no transferable action — including for Karpathy and any other respected name.
 - Stop at Stage 1 when the method exists only in retellers' copy and no primary source confirms it.
 - Stop at Stage 3 when the one-sentence reader payoff cannot be written honestly.
-- Never publish a manual piece without the user's explicit approval. The full-auto pipeline's approval waiver covers dashboard-sourced pieces only.
+- Standing approval (Luca 2026-11-15): daily deep articles may be published to WeChat without asking each time. The full-auto pipeline's approval waiver covers dashboard-sourced pieces. Other manual pieces still need his explicit approval.
 
 ## Available connectors
 
