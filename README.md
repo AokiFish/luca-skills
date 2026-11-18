@@ -2,11 +2,11 @@
 
 跨 Agent 通用的个人 Skill 集合，由 GitHub 统一发布，不绑定任何单一 Agent 或模型。
 
-起点是视觉创作，后来范围越长越大：现在 48 个 Skill，分四组——视觉与视频创作、 自媒体与平台运营、Agent 编排与工程、工作方法与铁律。多数是真实工作里沉淀出来的：一个模式反复出现，或同一个错误反复犯，就写成 Skill（见 `skill-sedimentation`），下次直接调，不再凭记忆重来。
+起点是视觉创作，后来范围越长越大：现在 49 个 Skill，分四组——视觉与视频创作、 自媒体与平台运营、Agent 编排与工程、工作方法与铁律。多数是真实工作里沉淀出来的：一个模式反复出现，或同一个错误反复犯，就写成 Skill（见 `skill-sedimentation`），下次直接调，不再凭记忆重来。
 
 ## 包含的 Skill
 
-### 视觉与视频创作（19）
+### 视觉与视频创作（20）
 
 | Skill | 用途 | 目录 |
 |---|---|---|
@@ -18,6 +18,7 @@
 | **video-link-to-prompt** | 分析视频链接或上传视频，逐镜头拆解创意机制，产出可跨模型复用的视频生成提示词、分镜表与模型专设参数。 | [`skills/video-link-to-prompt`](skills/video-link-to-prompt) |
 | **muse-prompt-director** | 一句话故事点子扩展为完整可投产的 AI 视频提示词：分镜、角色连续性、机位、灯光、音频、负向提示词，并校验字数限制。 | [`skills/muse-prompt-director`](skills/muse-prompt-director) |
 | **video-production-workflow** | 视频制作工作流：museai-video、分镜表先行、每 10 秒一个任务。 | [`skills/video-production-workflow`](skills/video-production-workflow) |
+| **ai-video-production** | AI 视频生产执行手册：分镜拆法、角色/服装/道具/武器锁、RGB 硬约束、白膜预演、复刻拆解真源、关键帧与逐段验收闸门。管动手执行，与 video-production-workflow 的流程规矩分工。 | [`skills/ai-video-production`](skills/ai-video-production) |
 | **github-weekly** | 用 Remotion 一键生成 GitHub 周榜 Top5 竖屏解说短视频（1080x1920，30fps），自动接配音、出封面首帧、生成字幕与标题文案。 | [`skills/github-weekly`](skills/github-weekly) |
 | **doubao-generation** | 豆包生成：文生/图生视频、图生图同身份换装、403 长期限制。 | [`skills/doubao-generation`](skills/doubao-generation) |
 | **en-prompt-first** | 生成入口中文先译英文再出图/视频。 | [`skills/en-prompt-first`](skills/en-prompt-first) |
