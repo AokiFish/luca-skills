@@ -2,7 +2,7 @@
 
 跨 Agent 通用的个人 Skill 集合，由 GitHub 统一发布，不绑定任何单一 Agent 或模型。
 
-起点是视觉创作，后来范围越长越大：现在 49 个 Skill，分四组——视觉与视频创作、 自媒体与平台运营、Agent 编排与工程、工作方法与铁律。多数是真实工作里沉淀出来的：一个模式反复出现，或同一个错误反复犯，就写成 Skill（见 `skill-sedimentation`），下次直接调，不再凭记忆重来。
+起点是视觉创作，后来范围越长越大：现在 50 个 Skill，分四组——视觉与视频创作、 自媒体与平台运营、Agent 编排与工程、工作方法与铁律。多数是真实工作里沉淀出来的：一个模式反复出现，或同一个错误反复犯，就写成 Skill（见 `skill-sedimentation`），下次直接调，不再凭记忆重来。
 
 ## 包含的 Skill
 
@@ -31,7 +31,7 @@
 | **effect-improvement** | 效果改进法：先解析再选策略，maker ≠ checker，对照真高质量素材迭代。 | [`skills/effect-improvement`](skills/effect-improvement) |
 | **smooth-transitions** | 切换平滑规则：轮播、标签页、滚动行、灯箱等一切视图切换必须带过渡动画，禁止瞬跳；小切换 90–200ms，整窗滑动 200–300ms，ease-out。 | [`skills/smooth-transitions`](skills/smooth-transitions) |
 
-### 自媒体与平台运营（10）
+### 自媒体与平台运营（11）
 
 | Skill | 用途 | 目录 |
 |---|---|---|
@@ -42,6 +42,7 @@
 | **x-dashboard** | X AI 监控看板：6 栏 Top 5、收录门槛、7 天时效、晨晚两更。 | [`skills/x-dashboard`](skills/x-dashboard) |
 | **x-post-reading** | X 推文优先 fxtwitter 读，必须带 Accept 头。 | [`skills/x-post-reading`](skills/x-post-reading) |
 | **wechat-publish-safety** | 公众号发布安全：文档导入路线、编辑器空保存 hazard、作者栏咪咪、群发 1 次上限。 | [`skills/wechat-publish-safety`](skills/wechat-publish-safety) |
+| **wechat-theme** | 咪咪AILab 公众号固定主题：版式学开源星探 Stitch 篇（编号四段式节标题、暖金底纹小标题、虚线引用框、墨绿实底表头），配色用自家墨绿 #14532D+暖金；含 DOCX 构建要点与导入实测教训（虚线框被压平、编辑器字数不计表格与引用块、按散文口径对账）。 | [`skills/wechat-theme`](skills/wechat-theme) |
 | **adaptation-checks** | 适配验收：标题字数脚本实测、hedge 须带归属动词。 | [`skills/adaptation-checks`](skills/adaptation-checks) |
 | **video-publish-pack** | 一次制作、多平台适配的视频发布物料生成器：为同一视频按抖音、小红书、B站、快手、视频号、YouTube 等 16 个平台的标题字数、描述结构、标签规则生成内容包（`xhsTitle`、`douyinTitle`、`bilibiliTitle` 等平台专用字段），附内容包校验脚本与 SRT/VTT 字幕规范，作为 social-auto-upload 的文案适配层。 | [`skills/video-publish-pack`](skills/video-publish-pack) |
 | **sau-publish** | 发布执行层：用 social-auto-upload 的 `sau` CLI 把视频/图文真正发到抖音、小红书、B站、快手、视频号、YouTube 等平台；含 Windows 安装踩坑、扫码登录、短信验证码处理、内容包转命令脚本与发布结果核验脚本。 | [`skills/sau-publish`](skills/sau-publish) |
